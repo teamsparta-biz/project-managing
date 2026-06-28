@@ -1,19 +1,30 @@
 ---
 name: sync-ax-hub
-description: "ax-hub에서 송찬호(chanho.song@teamsparta.co) 담당 교육 목록을 조회하여 웹앱 state.json에 동기화합니다. /sync-ax-hub 명령으로 실행."
+description: "ax-hub에서 담당자 이름 기준으로 교육 목록을 조회하여 웹앱 state.json에 동기화합니다. 웹앱에서 '교육 가져오기' 버튼을 누르면 /sync-ax-hub 담당자:이름 형태로 명령이 복사됩니다."
 user-invocable: true
 allowed-tools: mcp__ax-hub__query_sql, mcp__ax-hub__list_tables, mcp__ax-hub__describe_table, Read, Bash
 ---
 
 # ax-hub 교육 동기화 스킬
 
-`/sync-ax-hub` 실행 시 ax-hub DB에서 송찬호 담당 교육을 조회하고, 웹앱 state.json을 업데이트합니다.
+`/sync-ax-hub` 실행 시 ax-hub DB에서 담당자 교육을 조회하고, 웹앱 state.json을 업데이트합니다.
+
+---
+
+## 인수 파싱
+
+명령에서 다음 인수를 추출합니다:
+- `담당자:이름` → `OWNER_NAME` (예: `이다은`)
+
+인수가 없거나 이름이 없으면 사용자에게 담당자 이름을 물어보세요.
 
 ---
 
 ## 전체 흐름
 
 ```
+[0단계] profiles 테이블에서 담당자 이름 → 이메일 조회
+    ↓
 [1단계] ax-hub에서 교육 목록 조회 (courses + deals + clients)
     ↓
 [2단계] 각 교육의 강사·튜터 조회 (assignments + instructors)
@@ -33,9 +44,26 @@ allowed-tools: mcp__ax-hub__query_sql, mcp__ax-hub__list_tables, mcp__ax-hub__de
 
 ---
 
+## 0단계: 담당자 이름 → 이메일 조회
+
+아래 SQL을 실행하여 `OWNER_NAME`에 해당하는 이메일(`MANAGER_EMAIL`)을 얻습니다.
+
+```sql
+SELECT email FROM profiles
+WHERE display_name = 'OWNER_NAME'
+  AND email LIKE '%teamsparta.co'
+LIMIT 1;
+```
+
+- 결과가 없으면 사용자에게 "ax-hub에 등록된 이름과 정확히 일치해야 합니다"라고 안내하고 중단합니다.
+- 조회된 `email` 값을 이후 단계에서 `MANAGER_EMAIL`로 사용합니다.
+
+---
+
 ## 1단계: 교육 목록 조회
 
-아래 SQL을 `mcp__ax-hub__query_sql`로 실행합니다.
+아래 SQL을 `mcp__ax-hub__query_sql`로 실행합니다.  
+`MANAGER_EMAIL` 자리에 0단계에서 조회한 이메일을 넣으세요.
 
 ```sql
 SELECT
@@ -49,7 +77,7 @@ SELECT
 FROM courses c
 JOIN deals d   ON c.deal_id    = d.id
 JOIN clients cl ON d.client_id = cl.id
-WHERE c.manager_email = 'chanho.song@teamsparta.co'
+WHERE c.manager_email = 'MANAGER_EMAIL'
 ORDER BY c.lecture_start NULLS LAST;
 ```
 
@@ -173,26 +201,68 @@ WHERE course_id IN (/* 1단계 course_id 목록 */);
 
 ## 6단계: API POST
 
-아래 PowerShell을 Bash 도구로 실행합니다.  
-`$json` 변수에 병합된 state 전체를 JSON 문자열로 넣어 POST합니다.
+아래 PowerShell을 **PowerShell 도구**로 실행합니다.  
+`$json` 변수에 병합된 state 전체를 JSON 문자열로 넣고,  
+`$ownerName` 변수에 파싱한 `OWNER_NAME`을 넣어 **① 로컬 서버**, **② Supabase(Vercel 앱)** 두 곳에 순서대로 POST합니다.
 
 ```powershell
 $json = '<병합된 state JSON>'
-$bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-$req = [System.Net.WebRequest]::Create("http://localhost:3000/api/state")
-$req.Method = "POST"
-$req.ContentType = "application/json; charset=utf-8"
-$req.ContentLength = $bytes.Length
-$stream = $req.GetRequestStream()
-$stream.Write($bytes, 0, $bytes.Length)
-$stream.Close()
-$resp = $req.GetResponse()
-Write-Host "HTTP $([int]$resp.StatusCode) $($resp.StatusDescription)"
-$resp.Close()
-```
+$ownerName = '<OWNER_NAME>'  # 예: '이다은', '송찬호'
+$statePath = "G:\내 드라이브\Project_managing_tool\data\state.json"
 
-POST 실패 시 (서버가 꺼져 있는 경우):  
-파일에 직접 쓰는 fallback으로 `[System.IO.File]::WriteAllText("G:\내 드라이브\Project_managing_tool\data\state.json", $json, [System.Text.Encoding]::UTF8)` 를 실행하고 사용자에게 안내합니다.
+# ① 로컬 서버 POST (실패 시 파일 직접 쓰기)
+try {
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    $req = [System.Net.WebRequest]::Create("http://localhost:3000/api/state?owner=" + [Uri]::EscapeDataString($ownerName))
+    $req.Method = "POST"
+    $req.ContentType = "application/json; charset=utf-8"
+    $req.ContentLength = $bytes.Length
+    $stream = $req.GetRequestStream()
+    $stream.Write($bytes, 0, $bytes.Length)
+    $stream.Close()
+    $resp = $req.GetResponse()
+    Write-Host "로컬 POST 성공: HTTP $([int]$resp.StatusCode)"
+    $resp.Close()
+} catch {
+    Write-Host "로컬 서버 미실행 — 파일 직접 쓰기로 fallback"
+    [System.IO.File]::WriteAllText($statePath, $json, [System.Text.Encoding]::UTF8)
+    Write-Host "파일 쓰기 완료: $statePath"
+}
+
+# ② Supabase POST (Vercel 앱 동기화)
+# .env에서 자격증명 읽기
+$envPath = "G:\내 드라이브\Project_managing_tool\.env"
+$supabaseUrl = ""
+$supabaseKey = ""
+Get-Content $envPath | ForEach-Object {
+    if ($_ -match '^SUPABASE_URL=(.+)$') { $supabaseUrl = $Matches[1].Trim() }
+    if ($_ -match '^SUPABASE_KEY=(.+)$') { $supabaseKey = $Matches[1].Trim() }
+}
+
+if ($supabaseUrl -and $supabaseKey) {
+    try {
+        $sbBody = "{`"owner`":`"$ownerName`",`"data`":$json,`"updated_at`":`"$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffZ')`"}"
+        $sbBytes = [System.Text.Encoding]::UTF8.GetBytes($sbBody)
+        $sbReq = [System.Net.WebRequest]::Create("$supabaseUrl/rest/v1/user_states")
+        $sbReq.Method = "POST"
+        $sbReq.ContentType = "application/json; charset=utf-8"
+        $sbReq.ContentLength = $sbBytes.Length
+        $sbReq.Headers.Add("apikey", $supabaseKey)
+        $sbReq.Headers.Add("Authorization", "Bearer $supabaseKey")
+        $sbReq.Headers.Add("Prefer", "resolution=merge-duplicates,return=minimal")
+        $sbStream = $sbReq.GetRequestStream()
+        $sbStream.Write($sbBytes, 0, $sbBytes.Length)
+        $sbStream.Close()
+        $sbResp = $sbReq.GetResponse()
+        Write-Host "Supabase POST 성공: HTTP $([int]$sbResp.StatusCode) — Vercel 앱 동기화 완료"
+        $sbResp.Close()
+    } catch {
+        Write-Host "Supabase POST 실패: $($_.Exception.Message)"
+    }
+} else {
+    Write-Host "Supabase 자격증명 없음 — Vercel 동기화 건너뜀"
+}
+```
 
 ---
 
@@ -201,7 +271,7 @@ POST 실패 시 (서버가 꺼져 있는 경우):
 동기화 완료 후 아래 형식으로 출력합니다:
 
 ```
-✅ ax-hub 동기화 완료
+✅ ax-hub 동기화 완료 — {OWNER_NAME} 담당
 
 신규 추가: N건
   - 기업명 | 교육명 | 강사명

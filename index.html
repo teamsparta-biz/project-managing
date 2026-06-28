@@ -20,12 +20,12 @@
 <style>
 :root, html[data-theme="light"] {
   --bg-primary: #ffffff;
-  --bg-secondary: #f7f6f3;
-  --bg-tertiary: #efece6;
-  --text-primary: #1f1e1c;
-  --text-secondary: #5f5e5a;
-  --text-tertiary: #888780;
-  --text-danger: #A32D2D;
+  --bg-secondary: #f7f6f5;
+  --bg-tertiary: #eeeceb;
+  --text-primary: #1a1a1a;
+  --text-secondary: #5a5a5a;
+  --text-tertiary: #8a8a8a;
+  --text-danger: #C8192E;
   --border-tertiary: rgba(0,0,0,0.1);
   --border-secondary: rgba(0,0,0,0.18);
   --border-primary: rgba(0,0,0,0.3);
@@ -33,48 +33,50 @@
   --radius-lg: 12px;
   --font-sans: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Segoe UI", system-ui, sans-serif;
   --color-status-progress: #BA7517;
-  --color-status-done: #3B6D11;
-  --color-section-before: #185FA5;
-  --color-section-after: #993C1D;
+  --color-status-done: #2E7D4F;
+  --color-section-before: #C8192E;
+  --color-section-after: #1A1A1A;
   --color-d-soon: #BA7517;
-  --color-d-over: #A32D2D;
-  --color-d-dday: #854F0B;
+  --color-d-over: #C8192E;
+  --color-d-dday: #8B1520;
 }
 html[data-theme="dark"] {
-  --bg-primary: #1f1e1c;
-  --bg-secondary: #2a2925;
-  --bg-tertiary: #34332e;
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #252525;
+  --bg-tertiary: #303030;
   --text-primary: #f4f2ed;
   --text-secondary: #b4b2a9;
   --text-tertiary: #888780;
+  --text-danger: #FF4D5E;
   --border-tertiary: rgba(255,255,255,0.12);
   --border-secondary: rgba(255,255,255,0.22);
   --border-primary: rgba(255,255,255,0.4);
   --color-status-progress: #EF9F27;
   --color-status-done: #97C459;
-  --color-section-before: #85B7EB;
-  --color-section-after: #F0997B;
+  --color-section-before: #FF4D5E;
+  --color-section-after: #C8C8C8;
   --color-d-soon: #EF9F27;
-  --color-d-over: #F09595;
+  --color-d-over: #FF4D5E;
   --color-d-dday: #FAC775;
 }
 @media (prefers-color-scheme: dark) {
   html[data-theme="auto"] {
-    --bg-primary: #1f1e1c;
-    --bg-secondary: #2a2925;
-    --bg-tertiary: #34332e;
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #252525;
+    --bg-tertiary: #303030;
     --text-primary: #f4f2ed;
     --text-secondary: #b4b2a9;
     --text-tertiary: #888780;
+    --text-danger: #FF4D5E;
     --border-tertiary: rgba(255,255,255,0.12);
     --border-secondary: rgba(255,255,255,0.22);
     --border-primary: rgba(255,255,255,0.4);
     --color-status-progress: #EF9F27;
     --color-status-done: #97C459;
-    --color-section-before: #85B7EB;
-    --color-section-after: #F0997B;
+    --color-section-before: #FF4D5E;
+    --color-section-after: #C8C8C8;
     --color-d-soon: #EF9F27;
-    --color-d-over: #F09595;
+    --color-d-over: #FF4D5E;
     --color-d-dday: #FAC775;
   }
 }
@@ -133,8 +135,9 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .row-name input.company-input { width: 100%; border: 1px solid transparent; background: transparent; font-weight: 500; font-size: 14px; color: var(--text-primary); font-family: var(--font-sans); outline: none; padding: 5px 7px; border-radius: 4px; margin-bottom: 6px; }
 .row-name input.company-input:focus, .row-name input.company-input:hover { background: var(--bg-secondary); border-color: var(--border-tertiary); }
 
-.task-cell { width: 54px; min-width: 54px; cursor: pointer; padding: 14px 0; transition: background 0.15s; }
+.task-cell { width: 54px; min-width: 54px; cursor: pointer; padding: 10px 4px; transition: background 0.15s; display: table-cell; }
 .task-cell:hover { background: var(--bg-secondary); }
+.cell-label { display: block; font-size: 10px; color: var(--text-tertiary); opacity: 0.6; margin-top: 5px; line-height: 1.3; word-break: keep-all; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .task-th { min-width: 76px; max-width: 110px; vertical-align: top; padding-top: 8px !important; padding-bottom: 6px !important; cursor: grab; user-select: none; position: relative; }
 .task-th:active { cursor: grabbing; }
 .task-th.dragging { opacity: 0.35; cursor: grabbing; }
@@ -160,12 +163,16 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .status-1 { background: color-mix(in srgb, var(--color-status-progress) 12%, transparent); }
 .status-2 { background: color-mix(in srgb, var(--color-status-done) 12%, transparent); }
 
-.action-footer { background: var(--bg-secondary); padding: 8px 14px; border-top: 1px solid var(--border-tertiary); }
-.progress-inline { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.action-footer { background: var(--bg-secondary); padding: 10px 14px; border-top: 1px solid var(--border-tertiary); }
+.footer-layout { display: flex; gap: 16px; align-items: flex-start; }
+.footer-left { display: flex; flex-direction: column; gap: 8px; min-width: 200px; flex-shrink: 0; }
+.footer-sessions { flex: 1; min-width: 0; border-left: 1px solid var(--border-tertiary); padding-left: 16px; }
+.progress-inline { display: flex; align-items: center; gap: 10px; }
 .progress-num-inline { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; display: flex; align-items: baseline; gap: 5px; }
 .progress-num-inline .frac { color: var(--text-tertiary); font-weight: 400; font-size: 11px; }
 .progress-inline .progress-bar { flex: 1; }
-.action-btn-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.action-btn-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
+.row-name-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-tertiary); }
 .progress-bar { height: 6px; background: var(--bg-primary); border-radius: 999px; overflow: hidden; border: 1px solid var(--border-tertiary); }
 .progress-fill { height: 100%; border-radius: 999px; background: var(--color-status-done); transition: width 0.3s ease; }
 .progress-fill.partial { background: linear-gradient(90deg, var(--color-status-done) var(--done), var(--color-status-progress) var(--done), var(--color-status-progress) calc(var(--done) + var(--partial))); }
@@ -213,6 +220,11 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .sessions-label i { font-size: 12px; }
 .add-session-btn { margin-left: auto; background: transparent; border: 1px dashed var(--border-secondary); border-radius: 4px; padding: 2px 8px; color: var(--text-tertiary); cursor: pointer; font-size: 11px; font-family: var(--font-sans); line-height: 1.6; }
 .add-session-btn:hover { color: var(--text-primary); border-color: var(--border-primary); }
+.session-nav-ctrl { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; }
+.session-nav-btn { background: transparent; border: 1px solid var(--border-tertiary); border-radius: 4px; padding: 1px 4px; color: var(--text-tertiary); cursor: pointer; font-size: 11px; line-height: 1; display: inline-flex; align-items: center; }
+.session-nav-btn:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-secondary); background: var(--bg-primary); }
+.session-nav-btn:disabled { opacity: 0.35; cursor: default; }
+.session-nav-counter { font-size: 11px; color: var(--text-secondary); min-width: 28px; text-align: center; }
 .session-row { padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-tertiary); margin-bottom: 6px; }
 .session-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .session-num { font-size: 11px; font-weight: 600; color: var(--color-section-before); }
@@ -234,7 +246,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .session-staff-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-size: 12px; color: var(--text-secondary); }
 .session-staff-row i { font-size: 13px; color: var(--text-tertiary); flex-shrink: 0; }
 
-.archive-btn { background: transparent; border: 1px solid var(--border-tertiary); color: var(--text-secondary); cursor: pointer; padding: 5px 10px; border-radius: var(--radius-md); font-size: 12px; line-height: 1; font-family: var(--font-sans); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.archive-btn { background: transparent; border: 1px solid var(--border-tertiary); color: var(--text-secondary); cursor: pointer; padding: 8px 6px; border-radius: var(--radius-md); font-size: 12px; line-height: 1; font-family: var(--font-sans); display: flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; width: 100%; }
 .archive-btn:hover { background: color-mix(in srgb, var(--color-status-done) 14%, transparent); color: var(--color-status-done); border-color: color-mix(in srgb, var(--color-status-done) 30%, transparent); }
 .restore-btn:hover { background: color-mix(in srgb, var(--color-section-before) 14%, transparent); color: var(--color-section-before); border-color: color-mix(in srgb, var(--color-section-before) 30%, transparent); }
 .archive-btn.del-action-btn:hover { background: color-mix(in srgb, var(--text-danger) 14%, transparent); color: var(--text-danger); border-color: color-mix(in srgb, var(--text-danger) 30%, transparent); }
@@ -472,7 +484,7 @@ function openUserSelectorModal(onDone) {
       <div class="modal">
         <h3>누구세요?</h3>
         <label>이름을 입력하세요</label>
-        <input type="text" id="owner-input" placeholder="예: 홍길동" />
+        <input type="text" id="owner-input" placeholder="예: 홍길동" value="${escAttr(getCurrentOwner())}" />
         <div class="modal-actions">
           <button class="primary" id="owner-confirm-btn">시작하기</button>
         </div>
@@ -533,6 +545,7 @@ function DEFAULT_STATE() {
 let state = DEFAULT_STATE();
 let nextCompanyId = Math.max(0, ...state.companies.map(c => c.id)) + 1;
 let nextTaskNum = 100;
+const sessionNav = {};
 let currentTab = 'active';
 let dragSrcId = null;
 let saveTimer = null;
@@ -893,7 +906,8 @@ function renderBody() {
     const cells = state.tasks.map(t => {
       const status = (c.status && c.status[t.id]) || 0;
       const icon = status === 0 ? '○' : (status === 1 ? '<i class="ti ti-dots"></i>' : '<i class="ti ti-check"></i>');
-      return `<td class="task-cell status-${status}" onclick="cycleStatus(${c.id}, '${t.id}')" title="${escAttr(t.label)}"><span class="check-icon">${icon}</span></td>`;
+      const label = status === 0 ? `<span class="cell-label">${escHtml(t.label)}</span>` : '';
+      return `<td class="task-cell status-${status}" onclick="cycleStatus(${c.id}, '${t.id}')" title="${escAttr(t.label)}"><span class="check-icon">${icon}</span>${label}</td>`;
     }).join('');
     const total = state.tasks.length || 1;
     const done = state.tasks.filter(t => (c.status && c.status[t.id]) === 2).length;
@@ -923,47 +937,6 @@ function renderBody() {
           <i class="ti ti-book"></i>
           <a href="${escAttr(c.workbookUrl)}" target="_blank" rel="noopener" class="workbook-link" title="교안 열기">${escHtml(c.workbookUrl)}</a>
         </div>` : ''}
-        <div class="sessions-section">
-          <div class="sessions-label">
-            <i class="ti ti-calendar-event"></i>회차별 일정
-            <button class="add-session-btn" onclick="addSession(${c.id})">＋ 회차 추가</button>
-          </div>
-          <div class="sessions-list${(c.sessions || []).length >= 2 ? ' scrollable' : ''}">
-          ${(c.sessions || []).map((s, idx) => `
-            <div class="session-row">
-              <div class="session-header">
-                <span class="session-num">${idx + 1}회차</span>
-                ${(c.sessions.length > 1) ? `<button class="remove-session-btn" onclick="removeSession(${c.id}, '${s.id}')" title="회차 삭제"><i class="ti ti-x"></i></button>` : ''}
-              </div>
-              <div class="session-date-row">
-                <i class="ti ti-calendar"></i>
-                ${(s.dates && s.dates.length > 1)
-                  ? `<div class="session-dates-multi">${s.dates.map(d => `<span class="session-date-chip">${d.slice(5).replace('-', '/')} ${getDayLabel(d)}</span>`).join('')}</div>`
-                  : `<input type="date" class="date-input-field" value="${escAttr((s.dates && s.dates[0]) || '')}" onchange="updateSessionDate(${c.id}, '${s.id}', this.value)" title="교육 날짜" />
-                     ${(s.dates && s.dates[0]) ? `<span class="session-day-label">${getDayLabel(s.dates[0])}</span>` : ''}`
-                }
-                ${sessionStatusBadge(s.dates || [], s.startTime, s.endTime)}
-              </div>
-              <div class="session-time-row">
-                <i class="ti ti-clock"></i>
-                <input type="time" class="time-input-field" value="${escAttr(s.startTime || '')}" onchange="updateSession(${c.id}, '${s.id}', 'startTime', this.value)" title="시작 시간" />
-                <span class="period-sep">~</span>
-                <input type="time" class="time-input-field" value="${escAttr(s.endTime || '')}" onchange="updateSession(${c.id}, '${s.id}', 'endTime', this.value)" title="종료 시간" />
-              </div>
-              <div class="session-staff">
-                <div class="session-staff-row">
-                  <i class="ti ti-user"></i>
-                  <input type="text" class="meta-text-input" value="${escAttr(s.instructorName || '')}" onchange="updateSession(${c.id}, '${s.id}', 'instructorName', this.value)" placeholder="강사명" />
-                </div>
-                <div class="session-staff-row">
-                  <i class="ti ti-users"></i>
-                  <input type="text" class="meta-text-input" value="${escAttr(s.tutorName || '')}" onchange="updateSession(${c.id}, '${s.id}', 'tutorName', this.value)" placeholder="튜터명" />
-                </div>
-              </div>
-            </div>
-          `).join('')}
-          </div>
-        </div>
         <div class="meta-row" style="margin-top: 8px; align-items: center;">
           <i class="ti ti-activity" style="margin-top: 0;"></i>
           <span style="color: var(--text-tertiary); font-size: 11px; flex-shrink: 0;">교육상태</span>
@@ -973,28 +946,44 @@ function renderBody() {
           <i class="ti ti-notes"></i>
           <textarea class="memo-input" rows="1" placeholder="메모 추가..." onchange="updateField(${c.id}, 'memo', this.value)" oninput="autoGrow(this)">${escHtml(c.memo || '')}</textarea>
         </div>
+        <div class="row-name-actions">
+          ${currentTab === 'active'
+            ? `<button class="archive-btn" onclick="archiveCompany(${c.id})" title="교육 완료로 이동"><i class="ti ti-check"></i>교육 완료</button>`
+            : `<button class="archive-btn restore-btn" onclick="restoreCompany(${c.id})" title="진행 중으로 복원"><i class="ti ti-arrow-back-up"></i>복원</button>`
+          }
+          <button class="archive-btn del-action-btn" onclick="delCompany(${c.id})" title="프로젝트 삭제"><i class="ti ti-trash"></i>삭제</button>
+        </div>
       </td>
       ${cells}
       <td style="background: var(--bg-secondary);"></td>
     </tr>
     <tr>
       <td class="action-footer" colspan="${taskColCount}">
-        <div class="progress-inline">
-          <span class="progress-num-inline">${totalPct}% <span class="frac">${done}/${total}</span></span>
-          <div class="progress-bar"><div class="progress-fill partial" style="width:${donePct + partialPct}%; --done:${donePct === 0 ? '0%' : (donePct / (donePct + partialPct) * 100) + '%'}; --partial:${partialPct === 0 ? '0%' : (partialPct / (donePct + partialPct) * 100) + '%'};"></div></div>
-        </div>
-        <div class="action-btn-row">
-          <button class="archive-btn" onclick="openEmailDraft(${c.id})" title="이메일 초안 작성"><i class="ti ti-mail"></i>이메일 초안</button>
-          <button class="archive-btn" onclick="openInstructorRecruitment(${c.id})" title="주강사 구인 글 복사"><i class="ti ti-user-search"></i>주강사 구인</button>
-          <button class="archive-btn" onclick="openTutorRecruitment(${c.id})" title="기술튜터 구인 글 복사"><i class="ti ti-users"></i>기술튜터 구인</button>
-          <button class="archive-btn" onclick="openSlackDM(${c.id})" title="Slack DM방 개설"><i class="ti ti-brand-slack"></i>SlackDM방 개설</button>
-          <button class="archive-btn" onclick="openEduOperationShare(${c.id})" title="교육운영채널에 교육 공유"><i class="ti ti-speakerphone"></i>교육운영내용</button>
-          <button class="archive-btn" onclick="openTaxInvoiceInquiry(${c.id})" title="세금계산서 발행 문의 메일 초안 작성"><i class="ti ti-receipt-tax"></i>세금계산서발행</button>
-          ${currentTab === 'active'
-            ? `<button class="archive-btn" onclick="archiveCompany(${c.id})" title="교육 완료로 이동"><i class="ti ti-check"></i>교육 완료</button>`
-            : `<button class="archive-btn restore-btn" onclick="restoreCompany(${c.id})" title="진행 중으로 복원"><i class="ti ti-arrow-back-up"></i>복원</button>`
-          }
-          <button class="archive-btn del-action-btn" onclick="delCompany(${c.id})" title="프로젝트 삭제"><i class="ti ti-trash"></i>삭제</button>
+        <div class="footer-layout">
+          <div class="footer-left">
+            <div class="progress-inline">
+              <span class="progress-num-inline">${totalPct}% <span class="frac">${done}/${total}</span></span>
+              <div class="progress-bar"><div class="progress-fill partial" style="width:${donePct + partialPct}%; --done:${donePct === 0 ? '0%' : (donePct / (donePct + partialPct) * 100) + '%'}; --partial:${partialPct === 0 ? '0%' : (partialPct / (donePct + partialPct) * 100) + '%'};"></div></div>
+            </div>
+            <div class="action-btn-row">
+              <button class="archive-btn" onclick="openEmailDraft(${c.id})" title="이메일 초안 작성"><i class="ti ti-mail"></i>이메일 초안</button>
+              <button class="archive-btn" onclick="openSlackDM(${c.id})" title="Slack DM방 개설"><i class="ti ti-brand-slack"></i>SlackDM방 개설</button>
+              <button class="archive-btn" onclick="openEduOperationShare(${c.id})" title="교육운영채널에 교육 공유"><i class="ti ti-speakerphone"></i>교육운영내용</button>
+              <button class="archive-btn" onclick="openTaxInvoiceInquiry(${c.id})" title="세금계산서 발행 문의 메일 초안 작성"><i class="ti ti-receipt-tax"></i>세금계산서발행</button>
+            </div>
+          </div>
+          <div class="footer-sessions">
+            <div class="sessions-label">
+              <i class="ti ti-calendar-event"></i>회차별 일정
+              ${(c.sessions || []).length > 1 ? `
+              <div class="session-nav-ctrl">
+                <button class="session-nav-btn" id="session-prev-${c.id}" onclick="navSession(${c.id}, -1)" ${(sessionNav[c.id] || 0) === 0 ? 'disabled' : ''}><i class="ti ti-chevron-left"></i></button>
+                <span class="session-nav-counter" id="session-counter-${c.id}">${(sessionNav[c.id] || 0) + 1} / ${(c.sessions || []).length}</span>
+                <button class="session-nav-btn" id="session-next-${c.id}" onclick="navSession(${c.id}, 1)" ${(sessionNav[c.id] || 0) >= (c.sessions || []).length - 1 ? 'disabled' : ''}><i class="ti ti-chevron-right"></i></button>
+              </div>` : ''}
+            </div>
+            <div id="session-panel-${c.id}">${sessionPanelHTML(c, sessionNav[c.id] || 0)}</div>
+          </div>
         </div>
       </td>
     </tr>`;
@@ -1150,12 +1139,65 @@ function updateSessionDate(companyId, sessionId, value) {
   render();
 }
 
+function sessionPanelHTML(c, idx) {
+  const sessions = c.sessions || [];
+  if (!sessions.length) return '<div style="color:var(--text-tertiary);font-size:12px;padding:4px 0;">회차 없음</div>';
+  const s = sessions[idx];
+  return `<div class="session-row">
+    <div class="session-header">
+      <span class="session-num">${idx + 1}회차</span>
+      ${sessions.length > 1 ? `<button class="remove-session-btn" onclick="removeSession(${c.id}, '${s.id}')" title="회차 삭제"><i class="ti ti-x"></i></button>` : ''}
+    </div>
+    <div class="session-date-row">
+      <i class="ti ti-calendar"></i>
+      ${(s.dates && s.dates.length > 1)
+        ? `<div class="session-dates-multi">${s.dates.map(d => `<span class="session-date-chip">${d.slice(5).replace('-', '/')} ${getDayLabel(d)}</span>`).join('')}</div>`
+        : `<input type="date" class="date-input-field" value="${escAttr((s.dates && s.dates[0]) || '')}" onchange="updateSessionDate(${c.id}, '${s.id}', this.value)" title="교육 날짜" />
+           ${(s.dates && s.dates[0]) ? `<span class="session-day-label">${getDayLabel(s.dates[0])}</span>` : ''}`
+      }
+      ${sessionStatusBadge(s.dates || [], s.startTime, s.endTime)}
+    </div>
+    <div class="session-time-row">
+      <i class="ti ti-clock"></i>
+      <input type="time" class="time-input-field" value="${escAttr(s.startTime || '')}" onchange="updateSession(${c.id}, '${s.id}', 'startTime', this.value)" title="시작 시간" />
+      <span class="period-sep">~</span>
+      <input type="time" class="time-input-field" value="${escAttr(s.endTime || '')}" onchange="updateSession(${c.id}, '${s.id}', 'endTime', this.value)" title="종료 시간" />
+    </div>
+    <div class="session-staff">
+      <div class="session-staff-row">
+        <i class="ti ti-user"></i>
+        <input type="text" class="meta-text-input" value="${escAttr(s.instructorName || '')}" onchange="updateSession(${c.id}, '${s.id}', 'instructorName', this.value)" placeholder="강사명" />
+      </div>
+      <div class="session-staff-row">
+        <i class="ti ti-users"></i>
+        <input type="text" class="meta-text-input" value="${escAttr(s.tutorName || '')}" onchange="updateSession(${c.id}, '${s.id}', 'tutorName', this.value)" placeholder="튜터명" />
+      </div>
+    </div>
+  </div>`;
+}
+
+function navSession(cid, dir) {
+  const c = state.companies.find(co => co.id === cid);
+  const sessions = c?.sessions || [];
+  const cur = sessionNav[cid] || 0;
+  sessionNav[cid] = Math.max(0, Math.min(sessions.length - 1, cur + dir));
+  const panel = document.getElementById(`session-panel-${cid}`);
+  const counter = document.getElementById(`session-counter-${cid}`);
+  const prevBtn = document.getElementById(`session-prev-${cid}`);
+  const nextBtn = document.getElementById(`session-next-${cid}`);
+  if (panel) panel.innerHTML = sessionPanelHTML(c, sessionNav[cid]);
+  if (counter) counter.textContent = `${sessionNav[cid] + 1} / ${sessions.length}`;
+  if (prevBtn) prevBtn.disabled = sessionNav[cid] === 0;
+  if (nextBtn) nextBtn.disabled = sessionNav[cid] >= sessions.length - 1;
+}
+
 function addSession(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
   if (!c.sessions) c.sessions = [];
   const newId = 'session_' + companyId + '_' + Date.now();
   c.sessions.push({ id: newId, dates: [], startTime: '', endTime: '', instructorName: '', tutorName: '' });
+  sessionNav[companyId] = c.sessions.length - 1;
   render();
 }
 
@@ -1163,6 +1205,7 @@ function removeSession(companyId, sessionId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c || !c.sessions || c.sessions.length <= 1) return;
   c.sessions = c.sessions.filter(s => s.id !== sessionId);
+  sessionNav[companyId] = Math.min(sessionNav[companyId] || 0, c.sessions.length - 1);
   render();
 }
 
@@ -1493,7 +1536,9 @@ function openTaxInvoiceInquiry(companyId) {
 }
 
 function copySyncCommand() {
-  const cmd = '/sync-ax-hub';
+  const owner = getCurrentOwner();
+  let cmd = '/sync-ax-hub';
+  if (owner) cmd += ` 담당자:${owner}`;
   navigator.clipboard.writeText(cmd).then(() => {
     showCopyToast(cmd);
   }).catch(() => {
