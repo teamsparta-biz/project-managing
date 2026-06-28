@@ -4,5 +4,8 @@ server.log
 data/
 desktop.ini
 *.bat
+*.ps1
+sync-owners.txt
+sync-daily.log
 .vscode/
 .claude/settings.local.json

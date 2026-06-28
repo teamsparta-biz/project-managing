@@ -84,20 +84,22 @@ ORDER BY c.lecture_start NULLS LAST;
 - `course_status` 값 매핑:
   - `setup` → `'세팅중'`
   - `operation` → `'교육중'`
-  - `closed` → `''` (빈 문자열, 교육 완료)
+  - `closed` → archived=true (칸반보드에 표시 안 함)
+  - `stopped` → archived=true (칸반보드에 표시 안 함)
+- **closed / stopped 상태 교육은 이후 단계에서 제외합니다** (진행중·세팅중만 처리).
 - `location`: `courses.place` 값을 그대로 사용. NULL이면 `""`
 
 ---
 
-## 2단계: 강사·튜터 조회
+## 2단계: 회차별 강사·튜터 조회
 
-
-1단계에서 얻은 course_id 목록으로 아래 SQL을 실행합니다.  
-course_id가 여러 개면 `IN (id1, id2, ...)` 형태로 한 번에 조회합니다.
+1단계에서 얻은 **진행중·세팅중** course_id 목록으로 아래 SQL을 실행합니다.  
+`cr.round_number`를 포함시켜 **회차별로 강사/튜터를 구분**합니다.
 
 ```sql
 SELECT
   cr.course_id,
+  cr.round_number,
   i.name            AS instructor_name,
   a.qualification_id
 FROM assignments a
@@ -105,39 +107,41 @@ JOIN instructors i    ON a.instructor_id     = i.id
 JOIN course_sessions cs ON a.course_session_id = cs.id
 JOIN course_rounds cr   ON cs.round_id  = cr.id
 WHERE cr.course_id IN (/* 1단계 course_id 목록 */)
-ORDER BY cr.course_id, a.qualification_id;
+ORDER BY cr.course_id, cr.round_number, a.qualification_id;
 ```
 
-- `qualification_id`가 `main_l3`, `main_l5`, `mentor_l1` → **주강사** (`instructorName`)
-- `qualification_id`가 `tutor_l1`, `tutor_l2`, `tutor_l3` → **기술튜터** (`tutorName`)
-- 중복 이름은 제거합니다.
-- 각 course_id별로:
-  - `instructorName`: 주강사 이름을 `", "` 로 연결
-  - `tutorName`: 튜터 이름을 `", "` 로 연결 (없으면 `""`)
+qualification_id UUID 앞 8자리 기준 분류:
+- **주강사** (`instructorName`): `a7a605e9`, `888ee72c`, `07ecdab5`, `e39eeef7`, `ecdd7d85`, `7db139f7`, `2647f764`
+- **기술튜터** (`tutorName`): `30976fac`, `a0af4d4f`, `fc59bde4`
+
+결과를 `course_id → round_number → {main: Set, tutor: Set}` 으로 집계합니다 (중복 이름 제거).
 
 ---
 
-## 3단계: 교육일자·시간 조회
+## 3단계: 회차별 교육일자·시간 조회
 
-1단계 course_id 목록으로 아래 SQL을 실행합니다.
+1단계 course_id 목록으로 아래 SQL을 실행합니다. **`round_number`로 그룹화**해 회차별 첫/마지막 날짜를 구합니다.
 
 ```sql
 SELECT
   cr.course_id,
-  cs.date,
-  cs.start_time,
-  cs.end_time
+  cr.round_number,
+  MIN(cs.date)       AS start_date,
+  MIN(cs.start_time) AS start_time,
+  MAX(cs.date)       AS end_date,
+  MAX(cs.end_time)   AS end_time
 FROM course_sessions cs
 JOIN course_rounds cr ON cs.round_id = cr.id
 WHERE cr.course_id IN (/* 1단계 course_id 목록 */)
-ORDER BY cr.course_id, cs.date, cs.start_time;
+GROUP BY cr.course_id, cr.round_number
+ORDER BY cr.course_id, cr.round_number;
 ```
 
-- `start_time` / `end_time`은 소수 시간 형식 (예: `9` = 09:00, `13.5` = 13:30, `17.5` = 17:30)
-- 각 course_id별로:
-  - `startAt`: 날짜 오름차순 첫 번째 세션의 `date` + `start_time` → `"YYYY-MM-DDTHH:MM"`
-  - `endAt`: 날짜 내림차순 마지막 세션의 `date` + `end_time` → `"YYYY-MM-DDTHH:MM"`
-- 소수 시간 → HH:MM 변환: 정수부 = 시, 소수부 × 60 = 분 (예: `13.5` → `"13:30"`)
+- `start_time` / `end_time`은 소수 시간 형식 (예: `9` = 09:00, `13.5` = 13:30)
+- 간혹 HHMM 정수 형식(`1330`)이 있는 경우: `HH = t ÷ 100`, `MM = t % 100`
+- 회차별 `startAt` = `start_date` + `T` + `start_time` → `"YYYY-MM-DDTHH:MM"`
+- 회차별 `endAt`   = `end_date`   + `T` + `end_time`   → `"YYYY-MM-DDTHH:MM"`
+- 시간이 null이면 날짜만 사용 (`"YYYY-MM-DD"`)
 - 세션이 없으면 `startAt` / `endAt` 모두 `""`
 
 ---
@@ -177,21 +181,35 @@ WHERE course_id IN (/* 1단계 course_id 목록 */);
 - `ax_hub_course_id`: ax-hub의 course_id 저장 (향후 재동기화 시 매칭용)
 - `name`: client_name (기업명)
 - `trainingName`: training_name (교육명)
-- `instructorName`: 주강사 이름
-- `tutorName`: 기술튜터 이름을 `", "` 로 연결 (없으면 `""`)
+- `instructorName`: 회차가 1개면 강사명 그대로, 여러 회차면 `"1회차: A / 2회차: B"` 형식
+- `tutorName`: 회차가 1개면 튜터명 그대로, 여러 회차면 `"1회차: X / 2회차: Y"` 형식 (없으면 `""`)
 - `location`: courses.place 값 (없으면 `""`)
 - `trainingStatus`: course_status 매핑값
-- `startAt`: `"YYYY-MM-DDTHH:MM"` 형식 (없으면 `""`)
-- `endAt`: `"YYYY-MM-DDTHH:MM"` 형식 (없으면 `""`)
+- `startAt`: 전체 교육의 첫 회차 startAt
+- `endAt`: 전체 교육의 마지막 회차 endAt
 - `workbookUrl`: 교안 단축 URL (없으면 `""`)
-- `memo`: 튜터 정보
+- `memo`: `""`
 - `deadline`: `""`
-- `archived`: `course_status === 'closed'`이면 `true`, 아니면 `false`
+- `archived`: `false` (closed/stopped는 이미 제외됨)
 - `status`: 현재 state의 tasks 전부 0으로 초기화
+- `rounds`: 회차별 상세 배열 (아래 참조)
+
+#### `rounds` 배열 항목 구조
+```json
+{
+  "roundNumber": 1,
+  "instructorName": "채진백",
+  "tutorName": "구현, 황석현",
+  "startAt": "2026-03-17T09:00",
+  "endAt": "2026-06-30T18:00"
+}
+```
+- 회차별로 강사/튜터가 동일해도 rounds 배열에 항목을 추가합니다.
+- 강사/튜터 정보가 없는 회차는 `""` 으로 채웁니다.
 
 ### 기존 교육 (ax_hub_course_id로 매칭되는 항목)
 아래 필드만 갱신하고 나머지(status, memo 등 사용자가 편집한 내용)는 유지합니다:
-- `trainingName`, `instructorName`, `tutorName`, `location`, `trainingStatus`, `startAt`, `endAt`, `archived`, `workbookUrl`
+- `trainingName`, `instructorName`, `tutorName`, `location`, `trainingStatus`, `startAt`, `endAt`, `archived`, `workbookUrl`, `rounds`
 - `name` (client_name이 변경된 경우)
 
 ### ax_hub_course_id가 없는 기존 항목
