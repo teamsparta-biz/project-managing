@@ -3,7 +3,7 @@ name: tax-invoice-inquiry
 description: "교육 완료 후 고객사 담당자에게 세금계산서 발행 진행 가능 여부를 확인하는 메일 초안을 작성합니다. /tax-invoice-inquiry 명령으로 실행하며, 정보를 수집하고 Gmail 임시보관함에 저장합니다."
 argument-hint: "[수신자이름] [수신자직함] [만족도점수]"
 user-invocable: true
-allowed-tools: Read, Write, Glob
+allowed-tools: Read, Write, Glob, mcp__ax-hub__query_sql
 ---
 
 # 세금계산서 발행 확인 메일 초안 생성 스킬
@@ -27,6 +27,22 @@ allowed-tools: Read, Write, Glob
 
 ---
 
+## 0단계: 발신자 이름 자동 조회
+
+1. `G:\내 드라이브\Project_managing_tool\.env` 파일을 Read 도구로 읽어 `USER_EMAIL` 값을 파싱합니다.
+2. `USER_EMAIL`이 있으면 아래 SQL로 ax-hub에서 display_name을 조회합니다:
+
+```sql
+SELECT display_name FROM profiles
+WHERE email = 'USER_EMAIL'
+LIMIT 1;
+```
+
+3. 조회된 `display_name`을 `{발신자이름}`으로 사용합니다.
+4. `USER_EMAIL`이 없거나 조회 결과가 없으면 사용자에게 이름을 질문합니다.
+
+---
+
 ## 1단계: 정보 수집
 
 인자로 제공되지 않은 항목은 **한 번에 모아서** 질문합니다 (항목별로 나눠 묻지 않음).
@@ -40,7 +56,7 @@ allowed-tools: Read, Write, Glob
 | 만족도 점수 | 선택 | 교육 만족도조사 점수 (없으면 해당 문장 생략) | 3.88 |
 | 수신자 이메일 | 권장 | Gmail 임시저장 수신자 주소 | contact@samsung.com |
 
-> 발신자 정보는 기본값 **팀스파르타 송찬호** 사용. 다를 경우 사용자가 언급할 것.
+> 발신자 이름은 0단계에서 ax-hub에서 자동 조회한 값을 사용합니다. 다를 경우 사용자가 언급할 것.
 > **입력되지 않은 항목은 추가로 묻지 않고 해당 항목 자체를 메일에서 생략합니다.**
 > 수신자 이메일을 처음에 받지 못한 경우, '검수 완료' 직전에 요청합니다.
 
