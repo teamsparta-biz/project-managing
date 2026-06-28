@@ -239,7 +239,8 @@ try {
     $resp.Close()
 } catch {
     Write-Host "로컬 서버 미실행 — 파일 직접 쓰기로 fallback"
-    [System.IO.File]::WriteAllText($statePath, $json, [System.Text.Encoding]::UTF8)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($statePath, $json, $utf8NoBom)
     Write-Host "파일 쓰기 완료: $statePath"
 }
 

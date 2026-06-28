@@ -16,9 +16,10 @@ function sb(method, path, body) {
     if (bodyStr) headers['Content-Length'] = Buffer.byteLength(bodyStr);
 
     const req = https.request({ hostname, path, method, headers }, (r) => {
-      let d = '';
-      r.on('data', c => d += c);
+      const chunks = [];
+      r.on('data', c => chunks.push(c));
       r.on('end', () => {
+        const d = chunks.length ? Buffer.concat(chunks).toString('utf8') : '';
         try { resolve({ status: r.statusCode, body: d ? JSON.parse(d) : null }); }
         catch (e) { resolve({ status: r.statusCode, body: d }); }
       });
