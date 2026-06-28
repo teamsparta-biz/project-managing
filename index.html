@@ -283,6 +283,19 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .modal-actions button.primary:hover { opacity: 0.85; }
 .modal-actions button.primary.danger { background: var(--text-danger); color: #fff; border-color: var(--text-danger); }
 .modal-actions button.primary.danger:hover { opacity: 0.88; }
+.modal-actions button.primary:disabled { opacity: 0.4; cursor: default; }
+
+.owner-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.owner-chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-family: var(--font-sans); border: 1px solid var(--border-secondary); border-radius: 999px; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; transition: all 0.15s; }
+.owner-chip:hover { border-color: var(--color-section-before); color: var(--color-section-before); background: color-mix(in srgb, var(--color-section-before) 8%, transparent); }
+.owner-chip.active { border-color: var(--color-section-before); color: var(--color-section-before); background: color-mix(in srgb, var(--color-section-before) 12%, transparent); font-weight: 500; }
+.owner-add-row { margin-bottom: 8px; }
+.owner-add-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 12px; font-family: var(--font-sans); border: 1px dashed var(--border-secondary); border-radius: var(--radius-md); background: transparent; color: var(--text-tertiary); cursor: pointer; }
+.owner-add-btn:hover { color: var(--text-primary); border-color: var(--border-primary); }
+.owner-add-input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.owner-add-input-row input { flex: 1; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border-secondary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary); font-family: var(--font-sans); outline: none; }
+.owner-add-input-row input:focus { border-color: var(--color-section-before); }
+.owner-add-input-row button { padding: 8px 14px; font-size: 13px; border-radius: var(--radius-md); cursor: pointer; font-family: var(--font-sans); border: none; background: var(--text-primary); color: var(--bg-primary); }
 
 .meta-text-input { border: 1px solid transparent; background: transparent; font-size: 12px; color: var(--text-primary); font-family: var(--font-sans); padding: 3px 6px; border-radius: 4px; outline: none; flex: 1; min-width: 0; }
 .meta-text-input:hover, .meta-text-input:focus { background: var(--bg-secondary); border-color: var(--border-tertiary); }
@@ -476,31 +489,77 @@ if (window.matchMedia) {
 function getCurrentOwner() { return localStorage.getItem('training_owner') || ''; }
 function setCurrentOwner(name) { localStorage.setItem('training_owner', name.trim()); }
 function getStorageKey() { return `training_matrix_state_v1_${getCurrentOwner() || 'default'}`; }
+function getOwners() { try { return JSON.parse(localStorage.getItem('training_owners') || '[]'); } catch { return []; } }
+function saveOwners(list) { localStorage.setItem('training_owners', JSON.stringify(list)); }
+function addOwner(name) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  const list = getOwners();
+  if (!list.includes(trimmed)) { list.push(trimmed); saveOwners(list); }
+}
 
 function openUserSelectorModal(onDone) {
   const root = document.getElementById('modal-root');
-  root.innerHTML = `
-    <div class="modal-overlay">
-      <div class="modal">
-        <h3>누구세요?</h3>
-        <label>이름을 입력하세요</label>
-        <input type="text" id="owner-input" placeholder="예: 홍길동" value="${escAttr(getCurrentOwner())}" />
-        <div class="modal-actions">
-          <button class="primary" id="owner-confirm-btn">시작하기</button>
+
+  function renderModal() {
+    const owners = getOwners();
+    const current = getCurrentOwner();
+    root.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal">
+          <h3>누구세요?</h3>
+          ${owners.length ? `
+          <div class="owner-list">
+            ${owners.map(n => `
+              <button class="owner-chip${n === current ? ' active' : ''}" data-name="${escAttr(n)}">
+                <i class="ti ti-user" style="font-size:13px;"></i>${escHtml(n)}
+              </button>`).join('')}
+          </div>` : `<p style="font-size:13px; color:var(--text-tertiary); margin-bottom:12px;">등록된 이름이 없습니다.</p>`}
+          <div class="owner-add-row" id="owner-add-row">
+            <button class="owner-add-btn" id="owner-add-toggle"><i class="ti ti-plus"></i>이름 추가</button>
+          </div>
+          <div class="owner-add-input-row" id="owner-add-input-row" style="display:none;">
+            <input type="text" id="owner-new-input" placeholder="예: 홍길동" />
+            <button class="primary" id="owner-new-confirm">추가</button>
+          </div>
+          ${owners.length ? `<div class="modal-actions"><button class="primary" id="owner-confirm-btn" ${!current ? 'disabled' : ''}>시작하기</button></div>` : ''}
         </div>
-      </div>
-    </div>`;
-  const input = document.getElementById('owner-input');
-  function confirm() {
-    const name = input.value.trim();
-    if (!name) { input.focus(); return; }
-    setCurrentOwner(name);
-    root.innerHTML = '';
-    if (onDone) onDone();
+      </div>`;
+
+    root.querySelectorAll('.owner-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        root.querySelectorAll('.owner-chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        setCurrentOwner(btn.dataset.name);
+        const confirmBtn = document.getElementById('owner-confirm-btn');
+        if (confirmBtn) confirmBtn.disabled = false;
+      });
+    });
+
+    document.getElementById('owner-add-toggle')?.addEventListener('click', () => {
+      document.getElementById('owner-add-input-row').style.display = 'flex';
+      document.getElementById('owner-add-toggle').style.display = 'none';
+      setTimeout(() => document.getElementById('owner-new-input')?.focus(), 50);
+    });
+
+    function confirmAdd() {
+      const val = document.getElementById('owner-new-input')?.value.trim();
+      if (!val) return;
+      addOwner(val);
+      setCurrentOwner(val);
+      renderModal();
+    }
+    document.getElementById('owner-new-confirm')?.addEventListener('click', confirmAdd);
+    document.getElementById('owner-new-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') confirmAdd(); });
+
+    document.getElementById('owner-confirm-btn')?.addEventListener('click', () => {
+      if (!getCurrentOwner()) return;
+      root.innerHTML = '';
+      if (onDone) onDone();
+    });
   }
-  document.getElementById('owner-confirm-btn').addEventListener('click', confirm);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
-  setTimeout(() => input.focus(), 50);
+
+  renderModal();
 }
 
 function showUserSelector() {
@@ -948,16 +1007,16 @@ function renderBody() {
           <span style="color: var(--text-tertiary); font-size: 11px; flex-shrink: 0;">교육상태</span>
           <span class="training-status-badge ${tsCls}" onclick="cycleTrainingStatus(${c.id})" title="클릭으로 상태 변경"><span class="status-dot"></span>${tsLabel}</span>
         </div>
-        <div class="meta-row">
-          <i class="ti ti-notes"></i>
-          <textarea class="memo-input" rows="1" placeholder="메모 추가..." onchange="updateField(${c.id}, 'memo', this.value)" oninput="autoGrow(this)">${escHtml(c.memo || '')}</textarea>
-        </div>
         <div class="row-name-actions">
           ${currentTab === 'active'
             ? `<button class="archive-btn" onclick="archiveCompany(${c.id})" title="교육 완료로 이동"><i class="ti ti-check"></i>교육 완료</button>`
             : `<button class="archive-btn restore-btn" onclick="restoreCompany(${c.id})" title="진행 중으로 복원"><i class="ti ti-arrow-back-up"></i>복원</button>`
           }
           <button class="archive-btn del-action-btn" onclick="delCompany(${c.id})" title="프로젝트 삭제"><i class="ti ti-trash"></i>삭제</button>
+        </div>
+        <div class="meta-row" style="margin-top: 8px;">
+          <i class="ti ti-notes"></i>
+          <textarea class="memo-input" rows="1" placeholder="메모 추가..." onchange="updateField(${c.id}, 'memo', this.value)" oninput="autoGrow(this)">${escHtml(c.memo || '')}</textarea>
         </div>
       </td>
       ${cells}
