@@ -27,11 +27,9 @@ allowed-tools: mcp__ax-hub__query_sql, mcp__ax-hub__list_tables, mcp__ax-hub__de
     ↓
 [1단계] ax-hub에서 교육 목록 조회 (courses + deals + clients)
     ↓
-[2단계] 각 교육의 강사·튜터 조회 (assignments + instructors)
+[2단계] 세션·강사·튜터 통합 조회 (course_sessions + assignments + instructors — 단일 쿼리)
     ↓
-[3단계] 교육일자·시간 조회 (course_sessions — 첫/마지막 세션 기준)
-    ↓
-[3.5단계] 교안 링크 조회 (workbooks — full_url / shorten_url)
+[3단계] 교안 링크 조회 (workbooks — full_url / shorten_url)
     ↓
 [4단계] 현재 state.json 읽기 (기존 진행 상태 보존)
     ↓
@@ -91,62 +89,52 @@ ORDER BY c.lecture_start NULLS LAST;
 
 ---
 
-## 2단계: 회차별 강사·튜터 조회
+## 2단계: 세션·강사·튜터 통합 조회
 
-1단계에서 얻은 **진행중·세팅중** course_id 목록으로 아래 SQL을 실행합니다.  
-`cr.round_number`를 포함시켜 **회차별로 강사/튜터를 구분**합니다.
+1단계에서 얻은 **진행중·세팅중** course_id 목록으로 아래 단일 SQL을 실행합니다.  
+날짜/시간 + 강사/튜터를 한 번에 조회합니다 (기존 2단계 + 3단계 통합).
 
 ```sql
 SELECT
   cr.course_id,
   cr.round_number,
+  cs.date,
+  cs.start_time,
+  cs.end_time,
   i.name            AS instructor_name,
   a.qualification_id
-FROM assignments a
-JOIN instructors i    ON a.instructor_id     = i.id
-JOIN course_sessions cs ON a.course_session_id = cs.id
-JOIN course_rounds cr   ON cs.round_id  = cr.id
+FROM course_sessions cs
+JOIN course_rounds cr      ON cs.round_id          = cr.id
+LEFT JOIN assignments a    ON a.course_session_id  = cs.id
+LEFT JOIN instructors i    ON a.instructor_id       = i.id
 WHERE cr.course_id IN (/* 1단계 course_id 목록 */)
-ORDER BY cr.course_id, cr.round_number, a.qualification_id;
+ORDER BY cr.course_id, cr.round_number, cs.date;
 ```
 
-qualification_id UUID 앞 8자리 기준 분류:
+> `LEFT JOIN`을 사용하므로 강사가 배정되지 않은 세션도 날짜 행이 포함됩니다.  
+> 한 세션에 강사가 여럿이면 같은 날짜 행이 여러 번 나타납니다 — 날짜 중복 제거가 필요합니다.
+
+조회 결과를 `course_id → round_number → { dates: Set, startTimes: [], endTimes: [], main: Set, tutor: Set }` 으로 집계합니다:
+
+**날짜/시간**
+- `dates`: 해당 회차의 모든 날짜를 `"YYYY-MM-DD"` 형식으로 수집 (중복 제거, 오름차순)
+- `startTime`: 해당 회차 rows 중 MIN(start_time) → `"HH:MM"` 변환
+- `endTime`: 해당 회차 rows 중 MAX(end_time) → `"HH:MM"` 변환
+
+**강사/튜터** (qualification_id UUID 앞 8자리 기준)
 - **주강사** (`instructorName`): `a7a605e9`, `888ee72c`, `07ecdab5`, `e39eeef7`, `ecdd7d85`, `7db139f7`, `2647f764`
 - **기술튜터** (`tutorName`): `30976fac`, `a0af4d4f`, `fc59bde4`
+- 중복 이름 제거 (Set 사용)
 
-결과를 `course_id → round_number → {main: Set, tutor: Set}` 으로 집계합니다 (중복 이름 제거).
-
----
-
-## 3단계: 회차별 교육일자·시간 조회
-
-1단계 course_id 목록으로 아래 SQL을 실행합니다. **`round_number`로 그룹화**해 회차별 첫/마지막 날짜를 구합니다.
-
-```sql
-SELECT
-  cr.course_id,
-  cr.round_number,
-  MIN(cs.date)       AS start_date,
-  MIN(cs.start_time) AS start_time,
-  MAX(cs.date)       AS end_date,
-  MAX(cs.end_time)   AS end_time
-FROM course_sessions cs
-JOIN course_rounds cr ON cs.round_id = cr.id
-WHERE cr.course_id IN (/* 1단계 course_id 목록 */)
-GROUP BY cr.course_id, cr.round_number
-ORDER BY cr.course_id, cr.round_number;
-```
-
+시간 변환 규칙:
 - `start_time` / `end_time`은 소수 시간 형식 (예: `9` = 09:00, `13.5` = 13:30)
 - 간혹 HHMM 정수 형식(`1330`)이 있는 경우: `HH = t ÷ 100`, `MM = t % 100`
-- 회차별 `startAt` = `start_date` + `T` + `start_time` → `"YYYY-MM-DDTHH:MM"`
-- 회차별 `endAt`   = `end_date`   + `T` + `end_time`   → `"YYYY-MM-DDTHH:MM"`
-- 시간이 null이면 날짜만 사용 (`"YYYY-MM-DD"`)
-- 세션이 없으면 `startAt` / `endAt` 모두 `""`
+- 시간이 null이면 `""` (빈 문자열)
+- 세션이 없는 교육은 dates = [], startTime = "", endTime = ""
 
 ---
 
-## 3.5단계: 교안 링크 조회
+## 3단계: 교안 링크 조회
 
 1단계 course_id 목록으로 아래 SQL을 실행합니다.
 
@@ -154,7 +142,8 @@ ORDER BY cr.course_id, cr.round_number;
 SELECT
   course_id,
   title       AS workbook_title,
-  shorten_url AS workbook_url
+  shorten_url AS workbook_url,
+  full_url
 FROM workbooks
 WHERE course_id IN (/* 1단계 course_id 목록 */);
 ```
@@ -175,6 +164,8 @@ WHERE course_id IN (/* 1단계 course_id 목록 */);
 
 ## 5단계: 데이터 병합 규칙
 
+> 2단계 집계 결과(`course_id → round_number → { dates, startTime, endTime, main, tutor }`)와 3단계 교안 URL을 함께 사용합니다.
+
 ### 새 교육 (기존 state에 없는 course_id)
 - companies 배열에 새 항목 추가
 - `id`: 현재 companies 최대 id + 1씩 증가
@@ -185,31 +176,36 @@ WHERE course_id IN (/* 1단계 course_id 목록 */);
 - `tutorName`: 회차가 1개면 튜터명 그대로, 여러 회차면 `"1회차: X / 2회차: Y"` 형식 (없으면 `""`)
 - `location`: courses.place 값 (없으면 `""`)
 - `trainingStatus`: course_status 매핑값
-- `startAt`: 전체 교육의 첫 회차 startAt
-- `endAt`: 전체 교육의 마지막 회차 endAt
+- `startAt`: sessions[0].dates[0] + "T" + sessions[0].startTime (첫 회차 첫 날짜 + 시작시간), 없으면 `""`
+- `endAt`: 마지막 회차 마지막 날짜 + "T" + 마지막 회차 endTime, 없으면 `""`
 - `workbookUrl`: 교안 단축 URL (없으면 `""`)
 - `memo`: `""`
 - `deadline`: `""`
 - `archived`: `false` (closed/stopped는 이미 제외됨)
 - `status`: 현재 state의 tasks 전부 0으로 초기화
-- `rounds`: 회차별 상세 배열 (아래 참조)
+- `sessions`: 회차별 상세 배열 (아래 참조)
 
-#### `rounds` 배열 항목 구조
+#### `sessions` 배열 항목 구조
 ```json
 {
-  "roundNumber": 1,
+  "id": "session_[companyId]_[roundNumber]",
+  "dates": ["2026-03-17", "2026-03-24", "2026-03-31"],
+  "startTime": "09:00",
+  "endTime": "18:00",
   "instructorName": "채진백",
-  "tutorName": "구현, 황석현",
-  "startAt": "2026-03-17T09:00",
-  "endAt": "2026-06-30T18:00"
+  "tutorName": "구현, 황석현"
 }
 ```
-- 회차별로 강사/튜터가 동일해도 rounds 배열에 항목을 추가합니다.
+- `id`: `"session_" + companyId + "_" + roundNumber` 형식 (예: `"session_3_1"`)
+- `dates`: 해당 회차의 모든 수업 날짜 배열 (3단계에서 수집한 dates)
+- `startTime` / `endTime`: `"HH:MM"` 형식 (3단계에서 변환)
 - 강사/튜터 정보가 없는 회차는 `""` 으로 채웁니다.
+- 회차별로 강사/튜터가 동일해도 sessions 배열에 항목을 추가합니다.
+- 세션 정보가 없는 교육은 `sessions: [{ id: "session_[id]_1", dates: [], startTime: "", endTime: "", instructorName: "", tutorName: "" }]`
 
 ### 기존 교육 (ax_hub_course_id로 매칭되는 항목)
 아래 필드만 갱신하고 나머지(status, memo 등 사용자가 편집한 내용)는 유지합니다:
-- `trainingName`, `instructorName`, `tutorName`, `location`, `trainingStatus`, `startAt`, `endAt`, `archived`, `workbookUrl`, `rounds`
+- `trainingName`, `instructorName`, `tutorName`, `location`, `trainingStatus`, `startAt`, `endAt`, `archived`, `workbookUrl`, `sessions`
 - `name` (client_name이 변경된 경우)
 
 ### ax_hub_course_id가 없는 기존 항목
@@ -309,7 +305,11 @@ if ($supabaseUrl -and $supabaseKey) {
 ## 주의사항
 
 - `mcp__ax-hub__query_sql`은 SELECT만 허용됩니다 (read-only).
+- **한글 인코딩 주의**: MCP 쿼리 결과가 크면 하네스가 UTF-8 파일로 저장합니다. PowerShell에서 읽을 때 `Get-Content` 기본 인코딩(CP949)으로 읽으면 한글이 깨집니다. 반드시 `[System.IO.File]::ReadAllText(path, [System.Text.Encoding]::UTF8)`을 사용하세요.
+- 2단계 통합 쿼리는 LEFT JOIN이므로 강사 미배정 세션도 포함됩니다. 날짜 집계 시 반드시 중복 제거(Set)를 적용하세요.
 - `start_time` / `end_time`은 소수 시간(double). 변환 공식: `HH = Math.floor(t)`, `MM = Math.round((t % 1) * 60)`
-- 세션이 없는 교육은 `startAt` / `endAt` 모두 `""`으로 처리합니다.
+- HHMM 정수(`1330` 등) 판별: `t >= 100` 이면 HHMM 형식으로 처리.
+- 세션이 없는 교육은 `startAt`/`endAt` = `""`, `sessions` 배열은 dates가 빈 항목 1개로 초기화합니다.
+- `sessions[i].id`는 `"session_" + companyId + "_" + (i+1)` 형식으로 생성합니다.
 - 서버가 실행 중이지 않으면 파일 직접 쓰기로 fallback합니다.
 - 브라우저 새로고침(F5) 전까지는 변경 내용이 화면에 반영되지 않습니다.
