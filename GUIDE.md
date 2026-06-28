@@ -97,10 +97,18 @@ Slack에서 채널 목록 검색해줘
 **`.env` 파일 내용**:
 
 ```env
+SUPABASE_URL=https://riwkyupmrtmksryrzjpm.supabase.co
+SUPABASE_KEY=sb_publishable_QgDx1Nu32oeKMymnmvZWgA_oeBzYdj_
 USER_EMAIL=자신의이메일@teamsparta.co
 ```
 
-`USER_EMAIL` 하나만 설정하면 됩니다. `email-draft`, `tax-invoice-inquiry` 스킬이 이 이메일로 ax-hub에서 **발신자 이름을 자동 조회**합니다. 설정하지 않으면 스킬 실행 시 매번 이름을 직접 입력해야 합니다.
+| 항목 | 설명 | 필수 여부 |
+|------|------|----------|
+| `SUPABASE_URL` | Supabase 프로젝트 URL | 변경 불필요 (팀 공용) |
+| `SUPABASE_KEY` | Supabase 공개 키 | 변경 불필요 (팀 공용) |
+| `USER_EMAIL` | 본인의 팀스파르타 이메일 | **본인 이메일로 변경 필수** |
+
+`USER_EMAIL`은 `email-draft`, `tax-invoice-inquiry` 스킬이 ax-hub에서 **발신자 이름을 자동 조회**하는 데 사용됩니다. 설정하지 않으면 스킬 실행 시 매번 이름을 직접 입력해야 합니다.
 
 **설정 방법**:
 
@@ -108,7 +116,7 @@ USER_EMAIL=자신의이메일@teamsparta.co
 # .env.example 복사
 copy .env.example .env
 
-# 텍스트 편집기로 .env 열기 후 본인 이메일로 수정
+# 텍스트 편집기로 .env 열기 후 USER_EMAIL만 본인 이메일로 수정
 USER_EMAIL=본인이메일@teamsparta.co
 ```
 
@@ -121,7 +129,7 @@ USER_EMAIL=본인이메일@teamsparta.co
 | **Gmail** | claude.ai → Settings → Integrations → Gmail 연결 | 이메일 초안 임시보관함 저장 |
 | **Slack** | claude.ai → Settings → Integrations → Slack 연결 | SlackDM방 개설, 교육운영 공유 |
 | **ax-hub** | 별도 설정 불필요 (팀 MCP 서버에 자동 연결) | 교육 데이터 조회 및 동기화 |
-| **`.env`** | 파일 직접 편집 | 발신자 이름 자동 조회 |
+| **`.env`** | 파일 직접 편집 | 발신자 이름 자동 조회, Supabase 동기화 |
 
 ---
 
