@@ -891,10 +891,16 @@ function renderBody() {
   const visible = state.companies
     .filter(c => currentTab === 'active' ? !c.archived : c.archived)
     .sort((a, b) => {
-      if (!a.startAt && !b.startAt) return 0;
-      if (!a.startAt) return 1;
-      if (!b.startAt) return -1;
-      return new Date(a.startAt) - new Date(b.startAt);
+      const getEarliestDate = c => {
+        const dates = (c.sessions || []).flatMap(s => s.dates || []).filter(Boolean);
+        if (dates.length) return dates.sort()[0];
+        return c.startAt || null;
+      };
+      const da = getEarliestDate(a), db = getEarliestDate(b);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return new Date(da) - new Date(db);
     });
   if (!visible.length) {
     const msg = currentTab === 'active' ? '진행 중인 프로젝트가 없습니다' : '교육 완료된 프로젝트가 없습니다';
