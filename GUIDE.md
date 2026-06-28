@@ -97,23 +97,10 @@ Slack에서 채널 목록 검색해줘
 **`.env` 파일 내용**:
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-여기에_API_키_입력
-SUPABASE_URL=https://riwkyupmrtmksryrzjpm.supabase.co
-SUPABASE_KEY=sb_publishable_QgDx1Nu32oeKMymnmvZWgA_oeBzYdj_
 USER_EMAIL=자신의이메일@teamsparta.co
 ```
 
-| 항목 | 설명 | 필수 여부 |
-|------|------|----------|
-| `ANTHROPIC_API_KEY` | Anthropic API 키 | Claude Code 실행에 필요 |
-| `SUPABASE_URL` | Supabase 프로젝트 URL | 변경 불필요 (팀 공용) |
-| `SUPABASE_KEY` | Supabase 공개 키 | 변경 불필요 (팀 공용) |
-| `USER_EMAIL` | 본인의 팀스파르타 이메일 | **본인 이메일로 변경 필수** |
-
-**`USER_EMAIL` 설정이 중요한 이유**:
-
-- `email-draft`, `tax-invoice-inquiry` 스킬이 이 이메일로 ax-hub에서 **발신자 이름(display_name)을 자동 조회**합니다.
-- 설정하지 않으면 스킬 실행 시 매번 이름을 직접 입력해야 합니다.
+`USER_EMAIL` 하나만 설정하면 됩니다. `email-draft`, `tax-invoice-inquiry` 스킬이 이 이메일로 ax-hub에서 **발신자 이름을 자동 조회**합니다. 설정하지 않으면 스킬 실행 시 매번 이름을 직접 입력해야 합니다.
 
 **설정 방법**:
 
@@ -121,8 +108,8 @@ USER_EMAIL=자신의이메일@teamsparta.co
 # .env.example 복사
 copy .env.example .env
 
-# 텍스트 편집기로 .env 열기 후 USER_EMAIL 수정
-USER_EMAIL=chanho.song@teamsparta.co
+# 텍스트 편집기로 .env 열기 후 본인 이메일로 수정
+USER_EMAIL=본인이메일@teamsparta.co
 ```
 
 ---
@@ -134,7 +121,7 @@ USER_EMAIL=chanho.song@teamsparta.co
 | **Gmail** | claude.ai → Settings → Integrations → Gmail 연결 | 이메일 초안 임시보관함 저장 |
 | **Slack** | claude.ai → Settings → Integrations → Slack 연결 | SlackDM방 개설, 교육운영 공유 |
 | **ax-hub** | 별도 설정 불필요 (팀 MCP 서버에 자동 연결) | 교육 데이터 조회 및 동기화 |
-| **`.env`** | 파일 직접 편집 | 발신자 이름 자동 조회, Supabase 동기화 |
+| **`.env`** | 파일 직접 편집 | 발신자 이름 자동 조회 |
 
 ---
 
@@ -320,6 +307,31 @@ USER_EMAIL=chanho.song@teamsparta.co
 이 웹앱은 **Claude Code** 와 연동하여 반복 업무를 자동화합니다. 아래 스킬은 Claude Code 터미널에서 슬래시 명령으로 실행합니다.
 
 웹앱의 각 버튼을 클릭하면 해당 스킬 명령어가 **클립보드에 자동 복사**됩니다. 복사된 명령어를 Claude Code에 붙여넣어 실행하세요.
+
+### 스킬 설치 및 업데이트 방법
+
+스킬은 이 저장소의 `.claude/skills/` 폴더에 파일로 관리됩니다. **별도 설치 과정은 없으며, 저장소를 클론하면 스킬이 함께 포함됩니다.**
+
+**처음 사용할 때 (저장소 클론)**:
+
+```bash
+git clone <저장소 URL>
+cd Project_managing_tool
+```
+
+클론 후 Claude Code를 이 폴더에서 열면 `.claude/skills/` 안의 스킬이 자동으로 인식됩니다.
+
+**스킬이 업데이트되었을 때**:
+
+스킬 내용이 수정되거나 새 스킬이 추가된 경우, `git pull`로 내려받아야 반영됩니다.
+
+```bash
+git pull
+```
+
+> 팀원이 스킬을 수정하거나 새 스킬을 추가했다면 반드시 `git pull` 후 사용하세요. pull 없이는 이전 버전의 스킬이 그대로 실행됩니다.
+
+---
 
 ---
 
