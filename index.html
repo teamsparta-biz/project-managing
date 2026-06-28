@@ -361,41 +361,6 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 <div class="container">
   <h2 class="sr-only">기업별 교육 프로젝트 진행 매트릭스</h2>
 
-  <div class="notes-section" style="margin-top: 0; margin-bottom: 28px;">
-    <div class="notes-header">
-      <h2><i class="ti ti-notebook"></i>업무 특이사항</h2>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <button class="cleanup-btn" onclick="cleanupNotes()" title="취소선 항목을 업무 완료 탭으로 이동"><i class="ti ti-transfer-out"></i>정리하기</button>
-        <div class="notes-meta">
-          <span id="notes-count">0자</span>
-          <span class="notes-divider">·</span>
-          <span id="notes-updated">아직 작성된 내용 없음</span>
-        </div>
-      </div>
-    </div>
-    <div class="notes-tab-bar">
-      <button class="notes-tab-btn active" id="notes-tab-btn-notes" onclick="switchNotesTab('notes')"><i class="ti ti-notes"></i>특이사항</button>
-      <button class="notes-tab-btn" id="notes-tab-btn-completed" onclick="switchNotesTab('completed')"><i class="ti ti-circle-check"></i>업무 완료</button>
-      <button class="notes-tab-btn" id="notes-tab-btn-preview" onclick="switchNotesTab('preview')"><i class="ti ti-eye"></i>미리보기</button>
-    </div>
-    <div class="notes-body" id="notes-main-pane">
-      <div class="notes-editor-pane">
-        <div class="notes-pane-label"><i class="ti ti-pencil"></i>편집</div>
-        <textarea id="notes" class="notes-input" placeholder="업무를 진행하면서 발생한 특이사항, 메모, 아이디어를 자유롭게 작성하세요...&#10;&#10;예) - A기업 강사 일정 조율 필요 (수요일 오후 불가)&#10;    - 교안 피드백 받은 내용 정리&#10;    - 다음 분기 개선사항"></textarea>
-      </div>
-      <div class="notes-preview-pane">
-        <div class="notes-pane-label"><i class="ti ti-eye"></i>미리보기</div>
-        <div id="notes-preview" class="notes-preview"></div>
-      </div>
-    </div>
-    <div id="notes-completed-pane" style="display:none;">
-      <textarea id="completed-notes" class="notes-input" placeholder="정리하기 버튼으로 취소선 항목이 여기에 모입니다...&#10;&#10;직접 편집하거나 삭제할 수도 있습니다."></textarea>
-    </div>
-    <div id="notes-preview-full-pane" style="display:none;">
-      <div id="notes-preview-full" class="notes-preview" style="min-height: 480px; padding: 24px 32px; font-size: 14px; line-height: 1.8;"></div>
-    </div>
-  </div>
-
   <div class="title-bar">
     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
       <h1>교육 프로젝트 진행 현황</h1>
@@ -445,6 +410,41 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
   </div>
   <div class="hint">
     업무명을 <strong>더블클릭</strong>하면 수정할 수 있고, X 아이콘으로 삭제할 수 있습니다 · 업무 헤더를 좌우로 <strong>드래그</strong>하면 순서를 바꿀 수 있습니다 · 마감일은 D-3 이내면 주황색, 지난 날짜는 빨간색으로 표시됩니다 · 모든 변경 사항은 자동으로 저장됩니다
+  </div>
+
+  <div class="notes-section">
+    <div class="notes-header">
+      <h2><i class="ti ti-notebook"></i>업무 특이사항</h2>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="cleanup-btn" onclick="cleanupNotes()" title="취소선 항목을 업무 완료 탭으로 이동"><i class="ti ti-transfer-out"></i>정리하기</button>
+        <div class="notes-meta">
+          <span id="notes-count">0자</span>
+          <span class="notes-divider">·</span>
+          <span id="notes-updated">아직 작성된 내용 없음</span>
+        </div>
+      </div>
+    </div>
+    <div class="notes-tab-bar">
+      <button class="notes-tab-btn active" id="notes-tab-btn-notes" onclick="switchNotesTab('notes')"><i class="ti ti-notes"></i>특이사항</button>
+      <button class="notes-tab-btn" id="notes-tab-btn-completed" onclick="switchNotesTab('completed')"><i class="ti ti-circle-check"></i>업무 완료</button>
+      <button class="notes-tab-btn" id="notes-tab-btn-preview" onclick="switchNotesTab('preview')"><i class="ti ti-eye"></i>미리보기</button>
+    </div>
+    <div class="notes-body" id="notes-main-pane">
+      <div class="notes-editor-pane">
+        <div class="notes-pane-label"><i class="ti ti-pencil"></i>편집</div>
+        <textarea id="notes" class="notes-input" placeholder="업무를 진행하면서 발생한 특이사항, 메모, 아이디어를 자유롭게 작성하세요...&#10;&#10;예) - A기업 강사 일정 조율 필요 (수요일 오후 불가)&#10;    - 교안 피드백 받은 내용 정리&#10;    - 다음 분기 개선사항"></textarea>
+      </div>
+      <div class="notes-preview-pane">
+        <div class="notes-pane-label"><i class="ti ti-eye"></i>미리보기</div>
+        <div id="notes-preview" class="notes-preview"></div>
+      </div>
+    </div>
+    <div id="notes-completed-pane" style="display:none;">
+      <textarea id="completed-notes" class="notes-input" placeholder="정리하기 버튼으로 취소선 항목이 여기에 모입니다...&#10;&#10;직접 편집하거나 삭제할 수도 있습니다."></textarea>
+    </div>
+    <div id="notes-preview-full-pane" style="display:none;">
+      <div id="notes-preview-full" class="notes-preview" style="min-height: 480px; padding: 24px 32px; font-size: 14px; line-height: 1.8;"></div>
+    </div>
   </div>
 
   <div id="modal-root"></div>
