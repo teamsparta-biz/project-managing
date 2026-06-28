@@ -1,0 +1,8 @@
+node_modules/
+.env
+server.log
+data/
+desktop.ini
+*.bat
+.vscode/
+.claude/settings.local.json
