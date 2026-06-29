@@ -1018,7 +1018,7 @@ function renderBody() {
         </div>
         <div class="meta-row" style="margin-top: 8px;">
           <i class="ti ti-notes"></i>
-          <textarea class="memo-input" rows="1" placeholder="메모 추가..." onchange="updateField(${c.id}, 'memo', this.value)" oninput="autoGrow(this)">${escHtml(c.memo || '')}</textarea>
+          <textarea class="memo-input" rows="1" placeholder="메모 추가..." oninput="autoGrow(this); updateField(${c.id}, 'memo', this.value)">${escHtml(c.memo || '')}</textarea>
         </div>
       </td>
       ${cells}
@@ -1800,6 +1800,21 @@ document.getElementById('notes').addEventListener('input', onNotesInput);
 document.getElementById('completed-notes').addEventListener('input', e => {
   state.completedNotes = e.target.value;
   saveState();
+});
+
+// 탭 종료/숨김 시 대기 중인 저장(디바운스)을 즉시 flush — 메모·특이사항 휘발 방지
+function flushSave() {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  const payload = JSON.stringify(state);
+  try {
+    const url = '/api/state?owner=' + encodeURIComponent(getCurrentOwner());
+    navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+  } catch (e) {}
+  try { localStorage.setItem(getStorageKey(), payload); } catch (e) {}
+}
+window.addEventListener('pagehide', flushSave);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushSave();
 });
 
 document.getElementById('notes').addEventListener('keydown', e => {
