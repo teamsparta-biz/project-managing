@@ -1124,7 +1124,11 @@ function onNotesInput(e) {
   saveState();
 }
 
-function render() { renderHead(); renderBody(); renderSummary(); renderNotes(); saveState(); setupStickyHeader(); }
+function render() {
+  // 저장을 가장 먼저 예약 — 이후 렌더 단계에서 예외가 나도 칸반보드 선택값(체크 상태 등)이 DB에 반드시 저장되도록.
+  saveState();
+  renderHead(); renderBody(); renderSummary(); renderNotes(); setupStickyHeader();
+}
 
 // ─────────────────────────────────────────────────────────────
 // 헤더 세로 고정 (overflow-x:auto 컨테이너 내에서 JS로 처리)
@@ -1511,17 +1515,23 @@ function moveTask(srcId, targetId, placeAfter) {
 let toastTimer = null;
 let notesMode = 'edit';
 
+// marked(CDN)가 로드 실패해도 미리보기 때문에 렌더 전체가 중단되지 않도록 방어.
+function renderMarkdown(src) {
+  if (typeof marked !== 'undefined' && marked.parse) return marked.parse(src);
+  return escHtml(src).replace(/\n/g, '<br>');
+}
+
 function updateNotesPreview() {
   const preview = document.getElementById('notes-preview');
   if (!preview) return;
-  preview.innerHTML = marked.parse(state.notes || '*아직 작성된 내용이 없습니다.*');
+  preview.innerHTML = renderMarkdown(state.notes || '*아직 작성된 내용이 없습니다.*');
   if (notesTab === 'preview') updateNotesPreviewFull();
 }
 
 function updateNotesPreviewFull() {
   const el = document.getElementById('notes-preview-full');
   if (!el) return;
-  el.innerHTML = marked.parse(state.notes || '*아직 작성된 내용이 없습니다.*');
+  el.innerHTML = renderMarkdown(state.notes || '*아직 작성된 내용이 없습니다.*');
 }
 
 function openSlackDM(companyId) {

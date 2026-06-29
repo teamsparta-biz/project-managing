@@ -86,6 +86,7 @@ ORDER BY c.lecture_start NULLS LAST;
   - `stopped` → archived=true (칸반보드에 표시 안 함)
 - **closed / stopped 상태 교육은 이후 단계에서 제외합니다** (진행중·세팅중만 처리).
 - `location`: `courses.place` 값을 그대로 사용. NULL이면 `""`
+- 이 쿼리 결과의 **전체 course_id 목록(모든 상태 포함)** 을 "담당자 소유 course_id 집합"으로 보관합니다. 5단계의 **담당자 외 교육 제거**에서 사용합니다.
 
 ---
 
@@ -211,20 +212,45 @@ WHERE course_id IN (/* 1단계 course_id 목록 */);
 ### ax_hub_course_id가 없는 기존 항목
 사용자가 수동으로 추가한 항목이므로 건드리지 않습니다.
 
+### ⚠️ 담당자 외 교육 제거 (필수)
+state.json은 **해당 담당자 1명의 보드**입니다. 따라서 담당자가 맡지 않은 ax-hub 교육이 섞이면 안 됩니다.
+
+병합을 마친 뒤, companies 배열에서 아래 조건을 **모두 만족하지 않는** 항목은 **삭제**합니다:
+- `ax_hub_course_id`가 없음 (사용자 수동 추가 항목 → 보존), **또는**
+- `ax_hub_course_id`가 **이 담당자의 course_id 집합**에 포함됨
+
+즉, `ax_hub_course_id`가 있는데 그 값이 **담당자 소유 course_id 집합에 없으면 다른 담당자의 교육**이므로 제거합니다.
+
+> **담당자 소유 course_id 집합**: 1단계 쿼리를 `WHERE c.manager_email = 'MANAGER_EMAIL'` 조건만으로(상태 필터 없이) 실행해 얻은 **전체 course_id 목록**입니다. closed/stopped 교육은 칸반보드에 표시하지 않지만(제외 대상), 소유 집합 판정에는 포함하므로 "내 종료 교육"이 남아 있더라도 삭제되지 않습니다. 칸반보드 표시 제외는 `archived=true`로 처리합니다.
+
+이 제거는 PowerShell로 일괄 처리하는 것이 안전합니다 (대량 항목 필터링). 처리 전 `state.json.bak`로 백업한 뒤, 보존/제거 건수와 제거된 항목 목록을 사용자에게 보고합니다.
+
 ---
 
 ## 6단계: API POST
 
-아래 PowerShell을 **PowerShell 도구**로 실행합니다.  
-`$json` 변수에 병합된 state 전체를 JSON 문자열로 넣고,  
-`$ownerName` 변수에 파싱한 `OWNER_NAME`을 넣어 **① 로컬 서버**, **② Supabase(Vercel 앱)** 두 곳에 순서대로 POST합니다.
+### 6-1. Write 도구로 state.json 파일 저장
+
+**Write 도구**를 사용하여 병합된 state JSON을 아래 경로에 저장합니다.  
+(PowerShell 인라인 문자열로 한글을 넘기면 인코딩이 깨지므로, 파일 쓰기는 반드시 Write 도구를 사용합니다.)
+
+- 경로: `G:\내 드라이브\Project_managing_tool\data\state.json`
+- 내용: 병합된 state JSON (pretty-print, 들여쓰기 2칸)
+
+### 6-2. PowerShell로 파일에서 읽어 POST
+
+Write 도구로 파일 저장이 완료된 후, 아래 PowerShell을 **PowerShell 도구**로 실행합니다.  
+JSON은 파일에서 읽으므로 한글 인코딩 문제가 없습니다.
 
 ```powershell
-$json = '<병합된 state JSON>'
 $ownerName = '<OWNER_NAME>'  # 예: '이다은', '송찬호'
 $statePath = "G:\내 드라이브\Project_managing_tool\data\state.json"
 
-# ① 로컬 서버 POST (실패 시 파일 직접 쓰기)
+# 파일에서 UTF-8로 읽기
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$json = [System.IO.File]::ReadAllText($statePath, $utf8NoBom)
+
+# ① 로컬 서버 POST
 try {
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
     $req = [System.Net.WebRequest]::Create("http://localhost:3000/api/state?owner=" + [Uri]::EscapeDataString($ownerName))
@@ -238,14 +264,10 @@ try {
     Write-Host "로컬 POST 성공: HTTP $([int]$resp.StatusCode)"
     $resp.Close()
 } catch {
-    Write-Host "로컬 서버 미실행 — 파일 직접 쓰기로 fallback"
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($statePath, $json, $utf8NoBom)
-    Write-Host "파일 쓰기 완료: $statePath"
+    Write-Host "로컬 서버 미실행 — 파일은 이미 저장됨"
 }
 
 # ② Supabase POST (Vercel 앱 동기화)
-# .env에서 자격증명 읽기
 $envPath = "G:\내 드라이브\Project_managing_tool\.env"
 $supabaseUrl = ""
 $supabaseKey = ""
@@ -256,7 +278,8 @@ Get-Content $envPath | ForEach-Object {
 
 if ($supabaseUrl -and $supabaseKey) {
     try {
-        $sbBody = "{`"owner`":`"$ownerName`",`"data`":$json,`"updated_at`":`"$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffZ')`"}"
+        $ts = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        $sbBody = '{"owner":' + ('"' + $ownerName + '"') + ',"data":' + $json + ',"updated_at":"' + $ts + '"}'
         $sbBytes = [System.Text.Encoding]::UTF8.GetBytes($sbBody)
         $sbReq = [System.Net.WebRequest]::Create("$supabaseUrl/rest/v1/user_states")
         $sbReq.Method = "POST"
@@ -314,3 +337,4 @@ if ($supabaseUrl -and $supabaseKey) {
 - `sessions[i].id`는 `"session_" + companyId + "_" + (i+1)` 형식으로 생성합니다.
 - 서버가 실행 중이지 않으면 파일 직접 쓰기로 fallback합니다.
 - 브라우저 새로고침(F5) 전까지는 변경 내용이 화면에 반영되지 않습니다.
+- **담당자 외 교육 금지**: state.json은 담당자 1명의 보드이므로, 5단계의 "담당자 외 교육 제거"를 반드시 수행해 다른 담당자의 ax-hub 교육이 섞이지 않게 합니다.
