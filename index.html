@@ -968,6 +968,8 @@ function renderBody() {
     return;
   }
   tbody.innerHTML = visible.map(c => {
+    // 사용자가 직접 회차를 이동하지 않았다면, 오늘 기준 가장 가까운 회차를 기본 표시
+    if (sessionNav[c.id] === undefined) sessionNav[c.id] = defaultSessionIdx(c);
     const cells = state.tasks.map(t => {
       const status = (c.status && c.status[t.id]) || 0;
       const icon = status === 0 ? '○' : (status === 1 ? '<i class="ti ti-dots"></i>' : '<i class="ti ti-check"></i>');
@@ -1206,6 +1208,33 @@ function updateSessionDate(companyId, sessionId, value) {
   if (!s) return;
   s.dates = value ? [value] : [];
   render();
+}
+
+// 오늘(포함) 이후로 가장 가까운 미래 회차의 인덱스를 반환.
+// 미래 회차가 없으면(모두 종료) 가장 최근 과거 회차로 fallback. 없으면 0.
+function defaultSessionIdx(c) {
+  const sessions = c.sessions || [];
+  if (sessions.length <= 1) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let futureIdx = -1, futureDiff = Infinity;  // 오늘 이후 중 가장 가까운
+  let pastIdx = -1, pastDiff = Infinity;       // 과거 중 가장 가까운 (fallback)
+  sessions.forEach((s, i) => {
+    const dates = (s.dates && s.dates.length) ? s.dates : (s.date ? [s.date] : []);
+    dates.forEach(ds => {
+      const d = new Date(ds + 'T00:00:00');
+      if (isNaN(d)) return;
+      const diff = d - today;
+      if (diff >= 0) {
+        if (diff < futureDiff) { futureDiff = diff; futureIdx = i; }
+      } else if (-diff < pastDiff) {
+        pastDiff = -diff; pastIdx = i;
+      }
+    });
+  });
+  if (futureIdx !== -1) return futureIdx;
+  if (pastIdx !== -1) return pastIdx;
+  return 0;
 }
 
 function sessionPanelHTML(c, idx) {
