@@ -1034,6 +1034,8 @@ function renderBody() {
             </div>
             <div class="action-btn-row">
               <button class="archive-btn" onclick="openEmailDraft(${c.id})" title="이메일 초안 작성"><i class="ti ti-mail"></i>이메일 초안</button>
+              <button class="archive-btn" onclick="openInstructorRecruitment(${c.id})" title="주강사 구인 글 복사"><i class="ti ti-user-star"></i>주강사 구인</button>
+              <button class="archive-btn" onclick="openTutorRecruitment(${c.id})" title="기술튜터 구인 글 복사"><i class="ti ti-users"></i>기술튜터 구인</button>
               <button class="archive-btn" onclick="openSlackDM(${c.id})" title="Slack DM방 개설"><i class="ti ti-brand-slack"></i>SlackDM방 개설</button>
               <button class="archive-btn" onclick="openEduOperationShare(${c.id})" title="교육운영채널에 교육 공유"><i class="ti ti-speakerphone"></i>교육운영내용</button>
               <button class="archive-btn" onclick="openLectureDraftSend(${c.id})" title="고객사에 교안 초안 링크 송부 메일 초안 작성"><i class="ti ti-file-text"></i>고객사 교안 송부</button>
@@ -1666,101 +1668,64 @@ function copySyncCommand() {
   });
 }
 
-function openTutorRecruitment(companyId) {
-  const c = state.companies.find(c => c.id === companyId);
-  if (!c) return;
-
-  const sessions = c.sessions || [];
-  const sessionLines = [];
-  sessions.forEach(s => {
+// 구인 글 회차별 일정 라인 생성 (예: "1차: 7월 14일(화) 8:00 ~ 12:00 고양연수원")
+function buildRecruitmentScheduleLines(c) {
+  const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+  const lines = [];
+  let counter = 1;
+  (c.sessions || []).forEach(s => {
     const dates = (s.dates && s.dates.length) ? s.dates : (s.date ? [s.date] : []);
+    const timeStr = (s.startTime && s.endTime)
+      ? `${s.startTime} ~ ${s.endTime}`
+      : (s.startTime || '');
     dates.forEach(dateStr => {
       if (!dateStr) return;
       const d = new Date(dateStr + 'T00:00:00');
       if (isNaN(d)) return;
-      const yy = String(d.getFullYear()).slice(2);
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      const timeStr = (s.startTime && s.endTime) ? ` ${s.startTime} ~ ${s.endTime}` : (s.startTime ? ` ${s.startTime}` : '');
-      sessionLines.push(`${yy}/${mm}/${dd}${timeStr}`);
+      let line = `${counter}차: ${d.getMonth() + 1}월 ${d.getDate()}일(${DAY_LABELS[d.getDay()]})`;
+      if (timeStr) line += ` ${timeStr}`;
+      if (c.location) line += ` ${c.location}`;
+      lines.push(line);
+      counter++;
     });
   });
+  return lines;
+}
 
+// Claude Code에 붙여넣으면 recruit-share 스킬이 슬랙 채널로 구인 글을 전송하는 명령 생성
+function buildRecruitmentCommand(c, division, channel) {
+  const sessionLines = buildRecruitmentScheduleLines(c);
   const lines = [
-    `@channel 하기 교육 참여 가능한 튜터님들의 많은 지원 부탁드립니다!`,
-    `[${c.name}] ${c.trainingName || ''}`,
-    '',
-    `장소: ${c.location || ''}`,
-    `교육 일정:`,
-    ...sessionLines,
-    `구인 인원: 1인`
+    '/recruit-share',
+    `구분: ${division}`,
+    `채널: ${channel}`,
+    `기업명: ${c.name || ''}`,
+    `교육명: ${c.trainingName || ''}`,
+    '일정:',
+    ...(sessionLines.length ? sessionLines : ['(일정 미입력)'])
   ];
+  return lines.join('\n');
+}
 
-  const text = lines.join('\n');
-  navigator.clipboard.writeText(text).then(() => {
-    showCopyToast('기술튜터 구인 글 복사됨 — Slack에 붙여넣기 하세요');
+function openTutorRecruitment(companyId) {
+  const c = state.companies.find(c => c.id === companyId);
+  if (!c) return;
+  const cmd = buildRecruitmentCommand(c, '기술튜터', 'ax교육팀_기술튜터풀');
+  navigator.clipboard.writeText(cmd).then(() => {
+    showCopyToast('기술튜터 구인 명령 복사됨 — Claude Code에 붙여넣으면 #ax교육팀_기술튜터풀에 전송됩니다');
   }).catch(() => {
-    prompt('아래 내용을 복사해서 Slack에 붙여넣으세요:', text);
+    prompt('아래 명령을 복사해서 Claude Code에 붙여넣으세요:', cmd);
   });
 }
 
 function openInstructorRecruitment(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
-
-  const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
-
-  const sessionLines = [];
-  (c.sessions || []).forEach(s => {
-    const dates = (s.dates && s.dates.length) ? s.dates : (s.date ? [s.date] : []);
-    let durationNote = '';
-    if (s.startTime && s.endTime) {
-      const [sh, sm] = s.startTime.split(':').map(Number);
-      const [eh, em] = s.endTime.split(':').map(Number);
-      const totalMin = (eh * 60 + em) - (sh * 60 + sm);
-      if (totalMin > 0) {
-        const totalH = totalMin / 60;
-        const netH = totalH >= 5 ? totalH - 1 : totalH;
-        const netHStr = Number.isInteger(netH) ? netH : netH.toFixed(1);
-        durationNote = ` (점심시간 제외 ${netHStr}시간)`;
-      }
-    }
-    const timeStr = s.startTime && s.endTime
-      ? `${s.startTime}~${s.endTime}${durationNote}`
-      : [s.startTime, s.endTime].filter(Boolean).join('~');
-
-    if (dates.length) {
-      dates.forEach(dateStr => {
-        if (!dateStr) return;
-        const d = new Date(dateStr + 'T00:00:00');
-        if (isNaN(d)) return;
-        let line = `${d.getMonth() + 1}/${d.getDate()}(${DAY_LABELS[d.getDay()]})`;
-        if (timeStr) line += `  /  ${timeStr}`;
-        sessionLines.push(line);
-      });
-    } else if (timeStr) {
-      sessionLines.push(timeStr);
-    }
-  });
-
-  const lines = [
-    `@channel [${c.name}] ${c.trainingName || '교육 과정'}`,
-    '하기 일정과 내용으로 교육 가능한 강사님들의 많은 지원 부탁드립니다.',
-    '',
-    '일정',
-    ...sessionLines,
-    c.trainingName || '',
-    '',
-    '',
-    `장소 : ${c.location || ''}`,
-    '커리큘럼 : 첨부파일 참고 (일부 변경될 가능성이 있습니다.)'
-  ];
-
-  const text = lines.join('\n');
-  navigator.clipboard.writeText(text).then(() => {
-    showCopyToast('주강사 구인 글 복사됨 — Slack에 붙여넣기 하세요');
+  const cmd = buildRecruitmentCommand(c, '주강사', 'ax교육팀_주강사풀');
+  navigator.clipboard.writeText(cmd).then(() => {
+    showCopyToast('주강사 구인 명령 복사됨 — Claude Code에 붙여넣으면 #ax교육팀_주강사풀에 전송됩니다');
   }).catch(() => {
-    prompt('아래 내용을 복사해서 Slack에 붙여넣으세요:', text);
+    prompt('아래 명령을 복사해서 Claude Code에 붙여넣으세요:', cmd);
   });
 }
 
