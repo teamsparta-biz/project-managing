@@ -301,6 +301,9 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .meta-text-input:hover, .meta-text-input:focus { background: var(--bg-secondary); border-color: var(--border-tertiary); }
 .workbook-link { font-size: 12px; color: var(--color-section-before); text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 6px; border-radius: 4px; border: 1px solid transparent; }
 .workbook-link:hover { text-decoration: underline; background: var(--bg-secondary); border-color: var(--border-tertiary); }
+.workbook-open-btn { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--color-section-before); text-decoration: none; padding: 3px 5px; border-radius: 4px; border: 1px solid transparent; margin-top: 1px; }
+.workbook-open-btn i { font-size: 14px; }
+.workbook-open-btn:hover { background: var(--bg-secondary); border-color: var(--border-tertiary); }
 .training-status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 3px 10px 3px 7px; border-radius: 999px; border: 1px solid; cursor: pointer; user-select: none; transition: opacity 0.15s; flex-shrink: 0; margin-left: 2px; }
 .training-status-badge:hover { opacity: 0.75; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
@@ -1000,10 +1003,11 @@ function renderBody() {
           <i class="ti ti-mail"></i>
           <input type="email" class="meta-text-input" value="${escAttr(c.contactEmail || '')}" onchange="updateField(${c.id}, 'contactEmail', this.value)" placeholder="담당자 이메일" />
         </div>
-        ${c.workbookUrl ? `<div class="meta-row">
+        <div class="meta-row">
           <i class="ti ti-book"></i>
-          <a href="${escAttr(c.workbookUrl)}" target="_blank" rel="noopener" class="workbook-link" title="교안 열기">${escHtml(c.workbookUrl)}</a>
-        </div>` : ''}
+          <input type="text" class="meta-text-input" value="${escAttr(c.workbookUrl || '')}" onchange="updateField(${c.id}, 'workbookUrl', this.value)" placeholder="교안 링크" />
+          ${c.workbookUrl ? `<a href="${escAttr(c.workbookUrl)}" target="_blank" rel="noopener" class="workbook-open-btn" title="교안 열기"><i class="ti ti-external-link"></i></a>` : ''}
+        </div>
         <div class="meta-row" style="margin-top: 8px; align-items: center;">
           <i class="ti ti-activity" style="margin-top: 0;"></i>
           <span style="color: var(--text-tertiary); font-size: 11px; flex-shrink: 0;">교육상태</span>
@@ -1192,7 +1196,7 @@ function updateField(companyId, field, value) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
   c[field] = (field === 'name' ? (value.trim() || c.name) : value);
-  if (field === 'deadline') render(); else { saveState(); renderSummary(); }
+  if (field === 'deadline' || field === 'workbookUrl') render(); else { saveState(); renderSummary(); }
 }
 
 function updateSession(companyId, sessionId, field, value) {
