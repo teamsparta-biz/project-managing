@@ -301,7 +301,9 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .meta-text-input:hover, .meta-text-input:focus { background: var(--bg-secondary); border-color: var(--border-tertiary); }
 .workbook-link { font-size: 12px; color: var(--color-section-before); text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 6px; border-radius: 4px; border: 1px solid transparent; }
 .workbook-link:hover { text-decoration: underline; background: var(--bg-secondary); border-color: var(--border-tertiary); }
-.workbook-open-btn { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--color-section-before); text-decoration: none; padding: 3px 5px; border-radius: 4px; border: 1px solid transparent; margin-top: 1px; }
+.workbook-link { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--color-section-before); text-decoration: underline; padding: 3px 6px; border-radius: 4px; }
+.workbook-link:hover { background: var(--bg-secondary); }
+.workbook-open-btn { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--color-section-before); text-decoration: none; padding: 3px 5px; border-radius: 4px; border: 1px solid transparent; margin-top: 1px; background: none; cursor: pointer; }
 .workbook-open-btn i { font-size: 14px; }
 .workbook-open-btn:hover { background: var(--bg-secondary); border-color: var(--border-tertiary); }
 .training-status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 3px 10px 3px 7px; border-radius: 999px; border: 1px solid; cursor: pointer; user-select: none; transition: opacity 0.15s; flex-shrink: 0; margin-left: 2px; }
@@ -1005,8 +1007,10 @@ function renderBody() {
         </div>
         <div class="meta-row">
           <i class="ti ti-book"></i>
-          <input type="text" class="meta-text-input" value="${escAttr(c.workbookUrl || '')}" onchange="updateField(${c.id}, 'workbookUrl', this.value)" placeholder="교안 링크" />
-          ${c.workbookUrl ? `<a href="${escAttr(c.workbookUrl)}" target="_blank" rel="noopener" class="workbook-open-btn" title="교안 열기"><i class="ti ti-external-link"></i></a>` : ''}
+          ${c.workbookUrl && !editingWorkbookUrl[c.id]
+            ? `<a href="${escAttr(c.workbookUrl)}" target="_blank" rel="noopener" class="workbook-link" title="${escAttr(c.workbookUrl)}">${escHtml(c.workbookUrl)}</a>
+          <button class="workbook-open-btn" onclick="editWorkbookUrl(${c.id})" title="교안 링크 수정"><i class="ti ti-pencil"></i></button>`
+            : `<input type="text" id="workbook-input-${c.id}" class="meta-text-input" value="${escAttr(c.workbookUrl || '')}" onchange="setWorkbookUrl(${c.id}, this.value)" onblur="closeWorkbookUrlEdit(${c.id})" placeholder="교안 링크" />`}
         </div>
         <div class="meta-row" style="margin-top: 8px; align-items: center;">
           <i class="ti ti-activity" style="margin-top: 0;"></i>
@@ -1048,7 +1052,7 @@ function renderBody() {
           </div>
           <div class="footer-sessions">
             <div class="sessions-label">
-              <i class="ti ti-calendar-event"></i>회차별 일정
+              <i class="ti ti-calendar-event"></i>일자별 일정
               ${(c.sessions || []).length > 1 ? `
               <div class="session-nav-ctrl">
                 <button class="session-nav-btn" id="session-prev-${c.id}" onclick="navSession(${c.id}, -1)" ${(sessionNav[c.id] || 0) === 0 ? 'disabled' : ''}><i class="ti ti-chevron-left"></i></button>
@@ -1199,6 +1203,21 @@ function updateField(companyId, field, value) {
   if (field === 'deadline' || field === 'workbookUrl') render(); else { saveState(); renderSummary(); }
 }
 
+const editingWorkbookUrl = {};
+function editWorkbookUrl(companyId) {
+  editingWorkbookUrl[companyId] = true;
+  render();
+  const input = document.getElementById('workbook-input-' + companyId);
+  if (input) { input.focus(); input.select(); }
+}
+function setWorkbookUrl(companyId, value) {
+  delete editingWorkbookUrl[companyId];
+  updateField(companyId, 'workbookUrl', value.trim());
+}
+function closeWorkbookUrlEdit(companyId) {
+  if (editingWorkbookUrl[companyId]) { delete editingWorkbookUrl[companyId]; render(); }
+}
+
 function updateSession(companyId, sessionId, field, value) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c || !c.sessions) return;
@@ -1244,14 +1263,37 @@ function defaultSessionIdx(c) {
   return 0;
 }
 
+// 일자별 보기: 여러 날짜를 묶은 회차를 '날짜 1개 = 항목 1개'로 평탄화하고 날짜순 정렬.
+// 시간·강사·튜터는 각 날짜가 독립적으로 갖는다(같은 회차였던 날짜는 기존 값을 상속).
+function flattenSessionsByDate(c) {
+  const flat = [];
+  (c.sessions || []).forEach(s => {
+    const dates = (s.dates && s.dates.length) ? s.dates : (s.date ? [s.date] : []);
+    if (!dates.length) {
+      flat.push({ id: '', dates: [], startTime: s.startTime || '', endTime: s.endTime || '', instructorName: s.instructorName || '', tutorName: s.tutorName || '' });
+    } else {
+      dates.forEach(d => flat.push({ id: '', dates: [d], startTime: s.startTime || '', endTime: s.endTime || '', instructorName: s.instructorName || '', tutorName: s.tutorName || '' }));
+    }
+  });
+  flat.sort((a, b) => {
+    const da = a.dates[0] || '', db = b.dates[0] || '';
+    if (!da && !db) return 0;
+    if (!da) return 1;   // 날짜 미정은 뒤로
+    if (!db) return -1;
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+  flat.forEach((s, i) => { s.id = 'session_' + c.id + '_' + (i + 1); });
+  return flat.length ? flat : [{ id: 'session_' + c.id + '_1', dates: [], startTime: '', endTime: '', instructorName: '', tutorName: '' }];
+}
+
 function sessionPanelHTML(c, idx) {
   const sessions = c.sessions || [];
-  if (!sessions.length) return '<div style="color:var(--text-tertiary);font-size:12px;padding:4px 0;">회차 없음</div>';
+  if (!sessions.length) return '<div style="color:var(--text-tertiary);font-size:12px;padding:4px 0;">일정 없음</div>';
   const s = sessions[idx];
   return `<div class="session-row">
     <div class="session-header">
-      <span class="session-num">${idx + 1}회차</span>
-      ${sessions.length > 1 ? `<button class="remove-session-btn" onclick="removeSession(${c.id}, '${s.id}')" title="회차 삭제"><i class="ti ti-x"></i></button>` : ''}
+      <span class="session-num">${idx + 1}일차</span>
+      ${sessions.length > 1 ? `<button class="remove-session-btn" onclick="removeSession(${c.id}, '${s.id}')" title="이 일자 삭제"><i class="ti ti-x"></i></button>` : ''}
     </div>
     <div class="session-date-row">
       <i class="ti ti-calendar"></i>
@@ -1919,6 +1961,8 @@ document.addEventListener('keydown', e => {
           }
         });
       }
+      // 일자별 보기: 회차(여러 날짜 묶음)를 날짜 단위 항목으로 평탄화
+      c.sessions = flattenSessionsByDate(c);
     });
   } catch (err) {
     console.error('초기 로드 실패:', err);

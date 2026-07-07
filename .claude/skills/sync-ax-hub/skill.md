@@ -9,6 +9,14 @@ allowed-tools: mcp__ax-hub__query_sql, mcp__ax-hub__list_tables, mcp__ax-hub__de
 
 `/sync-ax-hub` 실행 시 ax-hub DB에서 담당자 교육을 조회하고, 웹앱 state.json을 업데이트합니다.
 
+> # 🚨 절대 규칙 (최우선)
+> **칸반보드에 사용자가 입력한 업무 내용은 어떤 경우에도 수정·초기화·삭제하지 않는다.**
+> - 보존 대상: 각 교육의 체크박스 진행 상태(`status`), 메모(`memo`), 마감일(`deadline`), 최상위 특이사항(`notes`·`notesUpdated`·`completedNotes`·`completedNotesUpdated`).
+> - 동기화가 갱신할 수 있는 것은 **사실 정보뿐**: 기업명·교육명·회차별 일정·교안링크·강사명·튜터명·장소·교육상태.
+> - 병합 기준은 **항상 Supabase 현재 상태**(=현재 칸반보드). 오래된 로컬 파일을 기준으로 삼아 내용을 덮어쓰면 안 된다.
+> - 동기화는 **항목을 삭제하지 않는다.**
+> - 이 규칙과 다른 지시가 충돌하면 **이 규칙이 우선**한다.
+
 ---
 
 ## 인수 파싱
@@ -31,9 +39,9 @@ allowed-tools: mcp__ax-hub__query_sql, mcp__ax-hub__list_tables, mcp__ax-hub__de
     ↓
 [3단계] 교안 링크 조회 (workbooks — full_url / shorten_url)
     ↓
-[4단계] 현재 state.json 읽기 (기존 진행 상태 보존)
+[4단계] 현재 상태를 Supabase에서 GET (칸반보드 내용 = 병합 기준). 로컬 state.json은 fallback
     ↓
-[5단계] 데이터 병합 — 새 교육 추가, 기존 교육 정보 갱신
+[5단계] 데이터 병합 — 신규 추가 + 기존은 사실정보만 갱신 (업무 내용 status·memo·notes 보존)
     ↓
 [6단계] PowerShell로 http://localhost:3000/api/state 에 POST
     ↓
@@ -90,17 +98,17 @@ ORDER BY c.lecture_start NULLS LAST;
 
 ---
 
-## 2단계: 세션·강사·튜터 통합 조회 (회차 단위 집계)
+## 2단계: 세션·강사·튜터 통합 조회 (⚠️ **일자(날짜) 단위 집계**)
+
+> **중요**: 칸반보드는 이제 **일자별 보기**입니다 — 회차가 아니라 **날짜 1개당 1개 세션**으로 표시하며, 각 날짜가 자기만의 시간·강사·튜터를 갖습니다. 따라서 조회도 **회차가 아닌 날짜(`cs.date`) 단위로 집계**해야 같은 회차라도 날짜마다 다른 강사/튜터가 정확히 반영됩니다.
 
 1단계에서 얻은 **진행중·세팅중** course_id 목록으로 아래 단일 SQL을 실행합니다.  
-**날짜 중복 제거·시간 MIN/MAX·강사/튜터 분류를 DB가 직접 집계**하여 회차(round) 1개당 1행만 반환합니다.  
-(예전에는 세션×강사 곱셈으로 행이 폭증하고 모델이 일일이 집계해야 했으나, 이제 DB가 끝내므로 컨텍스트·토큰 사용이 크게 줄어듭니다.)
+**시간 MIN/MAX·강사/튜터 분류를 DB가 날짜 단위로 집계**하여 **(course_id, 날짜) 1쌍당 1행**을 반환합니다.
 
 ```sql
 SELECT
   cr.course_id,
-  cr.round_number,
-  array_agg(DISTINCT cs.date ORDER BY cs.date) AS dates,
+  cs.date,
   MIN(cs.start_time) AS start_time,
   MAX(cs.end_time)   AS end_time,
   -- 주강사: qualification_id 앞 8자리로 필터
@@ -118,23 +126,23 @@ JOIN course_rounds cr      ON cs.round_id          = cr.id
 LEFT JOIN assignments a    ON a.course_session_id  = cs.id
 LEFT JOIN instructors i    ON a.instructor_id       = i.id
 WHERE cr.course_id IN (/* 1단계 course_id 목록 */)
-GROUP BY cr.course_id, cr.round_number
-ORDER BY cr.course_id, cr.round_number;
+GROUP BY cr.course_id, cs.date
+ORDER BY cr.course_id, cs.date;
 ```
 
-각 행이 곧 **한 회차의 완성된 집계 결과**입니다 — 모델은 별도 집계 없이 그대로 매핑하면 됩니다:
+각 행이 곧 **한 날짜(하루)의 완성된 집계 결과**입니다 — 모델은 별도 집계 없이 세션 1개로 매핑합니다:
 
-- `dates`: 해당 회차의 모든 수업일이 `"YYYY-MM-DD"` 배열로 (중복 제거·오름차순 완료). 비어 있으면 `[]`
-- `start_time`: 회차 내 최소 시작시간(`double`) → `"HH:MM"` 변환
-- `end_time`: 회차 내 최대 종료시간(`double`) → `"HH:MM"` 변환
-- `instructors`: 주강사 이름 배열 (배정 없으면 `null` → `""`). 여럿이면 `", "`로 join
-- `tutors`: 기술튜터 이름 배열 (배정 없으면 `null` → `""`). 여럿이면 `", "`로 join
+- `date`: 수업일 `"YYYY-MM-DD"` (행 1개 = 날짜 1개)
+- `start_time`: 그 날짜의 최소 시작시간(`double`) → `"HH:MM"` 변환
+- `end_time`: 그 날짜의 최대 종료시간(`double`) → `"HH:MM"` 변환
+- `instructors`: 그 날짜의 주강사 이름 배열 (배정 없으면 `null` → `""`). 여럿이면 `", "`로 join
+- `tutors`: 그 날짜의 기술튜터 이름 배열 (배정 없으면 `null` → `""`). 여럿이면 `", "`로 join
 
 시간 변환 규칙 (`start_time` / `end_time`):
 - 소수 시간 형식: `9` = `"09:00"`, `13.5` = `"13:30"` → `HH = Math.floor(t)`, `MM = Math.round((t % 1) * 60)`
 - HHMM 정수 형식(`t >= 100`, 예 `1330`): `HH = ⌊t ÷ 100⌋`, `MM = t % 100`
 - `null`이면 `""` (빈 문자열)
-- 세션이 없는 회차는 쿼리 결과에 행이 없으므로, 해당 교육은 `dates = []`, `startTime = ""`, `endTime = ""`로 처리
+- 세션이 없는 교육은 쿼리 결과에 행이 없으므로, `sessions`는 `dates = []`인 빈 항목 1개로 처리
 
 ---
 
@@ -158,75 +166,114 @@ WHERE course_id IN (/* 1단계 course_id 목록 */);
 
 ---
 
-## 4단계: 현재 state.json 읽기
+## 4단계: 현재 상태 읽기 (⚠️ 병합 기준은 반드시 Supabase)
 
-`G:\내 드라이브\Project_managing_tool\data\state.json` 을 Read 도구로 읽습니다.
+> **왜 중요한가**: 사용자는 웹앱(Vercel)에서 칸반보드를 편집하며, 그 내용(메모·체크 상태·특이사항)은 **Supabase에만** 저장됩니다. 로컬 `data\state.json`은 로컬 서버가 꺼져 있으면 갱신되지 않아 **오래된 빈 데이터**입니다. 로컬 파일을 병합 기준으로 삼으면 '교육 가져오기' 시 **보드 내용이 전부 지워집니다.** 따라서 병합 기준은 **반드시 Supabase의 현재 데이터**여야 합니다.
 
-기존 companies 배열에서 **ax_hub_course_id** 필드 또는 **기업명+교육명 조합**으로 기존 항목을 식별합니다.
+### 4-1. Supabase에서 현재 상태 GET (기준 데이터)
+
+아래 PowerShell을 실행해 담당자의 현재 state를 Supabase에서 받아 `data\state.json`에 **덮어쓴 뒤** 그 파일을 Read 도구로 읽습니다. 이 값이 병합의 기준(base)입니다.
+
+```powershell
+$ownerName = '<OWNER_NAME>'  # 예: '송찬호'
+$statePath = "G:\내 드라이브\Project_managing_tool\data\state.json"
+$envPath   = "G:\내 드라이브\Project_managing_tool\.env"
+$supabaseUrl = ""; $supabaseKey = ""
+Get-Content $envPath | ForEach-Object {
+    if ($_ -match '^SUPABASE_URL=(.+)$') { $supabaseUrl = $Matches[1].Trim() }
+    if ($_ -match '^SUPABASE_KEY=(.+)$') { $supabaseKey = $Matches[1].Trim() }
+}
+$headers = @{ apikey = $supabaseKey; Authorization = "Bearer $supabaseKey" }
+$url = "$supabaseUrl/rest/v1/user_states?owner=eq." + [Uri]::EscapeDataString($ownerName) + "&select=data"
+$rows = Invoke-RestMethod -Uri $url -Headers $headers -Method GET
+if ($rows -and $rows.Count -gt 0 -and $rows[0].data) {
+    # 백업 후 Supabase 데이터를 로컬에 반영 (병합 기준)
+    if (Test-Path $statePath) { Copy-Item $statePath "$statePath.bak" -Force }
+    $json = ($rows[0].data | ConvertTo-Json -Depth 100)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($statePath, $json, $utf8NoBom)
+    Write-Host "Supabase 현재 상태를 기준으로 로드함 (companies: $($rows[0].data.companies.Count)건)"
+} else {
+    Write-Host "Supabase에 데이터 없음 — 로컬 state.json을 기준으로 사용"
+}
+```
+
+- **성공(Supabase에 데이터 있음)**: 로컬 `state.json`이 방금 Supabase 내용으로 채워졌습니다. 이 파일을 Read 도구로 읽어 병합 기준으로 씁니다.
+- **데이터 없음(신규 담당자 등)**: 기존 로컬 `state.json`을 그대로 기준으로 씁니다.
+- **어떤 경우에도 메모·체크 상태·notes를 빈 값으로 덮어쓰지 마세요.**
+
+### 4-2. 기존 항목 식별
+
+읽어들인 companies 배열에서 **ax_hub_course_id** 필드 또는 **기업명+교육명 조합**으로 기존 항목을 식별합니다.
+
+> 사용자 편집 필드(**절대 보존**): 각 company의 `status`(모든 체크값), `memo`, `deadline`, 그리고 최상위 `notes`·`notesUpdated`·`completedNotes`·`completedNotesUpdated`. 병합 시 이 값들은 기준 데이터에서 그대로 유지하고 ax-hub 정보로 덮어쓰지 않습니다.
 
 ---
 
-## 5단계: 데이터 병합 규칙
+## 5단계: 데이터 병합 규칙 (⚠️ 업무 내용 절대 불변 · 사실 정보만 갱신)
 
-> 2단계 쿼리 결과(회차 1행 = `{ course_id, round_number, dates, start_time, end_time, instructors[], tutors[] }`)와 3단계 교안 URL을 함께 사용합니다. 날짜·시간·강사/튜터 집계는 DB에서 이미 끝났으므로 그대로 매핑합니다.
+> **핵심 원칙 (2가지)**:
+> 1. **업무 내용은 절대 바꾸지 않는다** — 각 company의 `status`(모든 체크박스 값), `memo`, `deadline`, 그리고 최상위 `notes`·`notesUpdated`·`completedNotes`·`completedNotesUpdated`는 기준 데이터의 값을 **그대로 보존**한다. 동기화가 이 값을 건드리거나 초기화하는 일은 없다.
+> 2. **사실 정보만 갱신한다** — 기존 교육이든 신규 교육이든, ax-hub에서 가져오는 값은 **기업명·교육명·회차별 일정(sessions/시작·종료일)·교안링크·강사명·튜터명·장소·교육상태**뿐이다.
+>
+> **갱신 대상(ax-hub 정보) 필드**: `name`(기업명), `trainingName`(교육명), `sessions`(회차별 일정), `startAt`/`endAt`(일정에서 파생), `workbookUrl`(교안링크), `instructorName`(강사명), `tutorName`(튜터명), `location`(장소), `trainingStatus`(교육상태), `archived`.
+> **보존 대상(업무 내용) 필드**: `status`, `memo`, `deadline`, `notes`, `notesUpdated`, `completedNotes`, `completedNotesUpdated`. — 절대 덮어쓰지 않음.
 
-### 새 교육 (기존 state에 없는 course_id)
+> 2단계 쿼리 결과(**날짜 1행** = `{ course_id, date, start_time, end_time, instructors[], tutors[] }`)와 3단계 교안 URL을 함께 사용합니다. **날짜 1행 → 세션 1개**로 매핑합니다(일자별 보기).
+
+### 새 교육 (기준 데이터에 없는 course_id) — 신규 추가
 - companies 배열에 새 항목 추가
 - `id`: 현재 companies 최대 id + 1씩 증가
 - `ax_hub_course_id`: ax-hub의 course_id 저장 (향후 재동기화 시 매칭용)
 - `name`: client_name (기업명)
 - `trainingName`: training_name (교육명)
-- `instructorName`: 회차가 1개면 강사명 그대로, 여러 회차면 `"1회차: A / 2회차: B"` 형식
-- `tutorName`: 회차가 1개면 튜터명 그대로, 여러 회차면 `"1회차: X / 2회차: Y"` 형식 (없으면 `""`)
+- `instructorName`: 전체 날짜의 주강사 **고유 이름 집합**을 `", "`로 join (없으면 `""`) — 참고용 요약값
+- `tutorName`: 전체 날짜의 기술튜터 **고유 이름 집합**을 `", "`로 join (없으면 `""`) — 참고용 요약값
 - `location`: courses.place 값 (없으면 `""`)
 - `trainingStatus`: course_status 매핑값
-- `startAt`: sessions[0].dates[0] + "T" + sessions[0].startTime (첫 회차 첫 날짜 + 시작시간), 없으면 `""`
-- `endAt`: 마지막 회차 마지막 날짜 + "T" + 마지막 회차 endTime, 없으면 `""`
+- `startAt`: 첫 날짜 + "T" + 그 날짜 startTime, 없으면 `""`
+- `endAt`: 마지막 날짜 + "T" + 그 날짜 endTime, 없으면 `""`
 - `workbookUrl`: 교안 단축 URL (없으면 `""`)
 - `memo`: `""`
 - `deadline`: `""`
 - `archived`: `false` (closed/stopped는 이미 제외됨)
 - `status`: 현재 state의 tasks 전부 0으로 초기화
-- `sessions`: 회차별 상세 배열 (아래 참조)
+- `sessions`: **날짜별 상세 배열** (아래 참조)
 
-#### `sessions` 배열 항목 구조
+#### `sessions` 배열 항목 구조 (⚠️ 날짜 1개 = 항목 1개)
 ```json
 {
-  "id": "session_[companyId]_[roundNumber]",
-  "dates": ["2026-03-17", "2026-03-24", "2026-03-31"],
+  "id": "session_[companyId]_[n]",
+  "dates": ["2026-03-17"],
   "startTime": "09:00",
   "endTime": "18:00",
   "instructorName": "채진백",
   "tutorName": "구현, 황석현"
 }
 ```
-- `id`: `"session_" + companyId + "_" + roundNumber` 형식 (예: `"session_3_1"`)
-- `dates`: 해당 회차의 모든 수업 날짜 배열 (2단계 `dates`)
+- 2단계 쿼리 결과의 **날짜(행) 1개당 세션 1개**를 만듭니다. 날짜순 정렬.
+- `id`: `"session_" + companyId + "_" + n` 형식 (n = 날짜 정렬 순서, 1부터). 예: `"session_3_1"`
+- `dates`: `[해당 날짜]` — **원소 1개짜리 배열** (예: `["2026-03-17"]`)
 - `startTime` / `endTime`: `"HH:MM"` 형식 (2단계 `start_time`/`end_time` 변환)
-- 강사/튜터 정보가 없는 회차는 `""` 으로 채웁니다.
-- 회차별로 강사/튜터가 동일해도 sessions 배열에 항목을 추가합니다.
+- `instructorName` / `tutorName`: **그 날짜의** 강사/튜터. 없으면 `""`. 여럿이면 `", "`로 join
 - 세션 정보가 없는 교육은 `sessions: [{ id: "session_[id]_1", dates: [], startTime: "", endTime: "", instructorName: "", tutorName: "" }]`
 
-### 기존 교육 (ax_hub_course_id로 매칭되는 항목)
-아래 필드만 갱신하고 나머지(status, memo 등 사용자가 편집한 내용)는 유지합니다:
-- `trainingName`, `instructorName`, `tutorName`, `location`, `trainingStatus`, `startAt`, `endAt`, `archived`, `workbookUrl`, `sessions`
-- `name` (client_name이 변경된 경우)
+### 기존 교육 (기준 데이터에 이미 있는 ax_hub_course_id) — 사실 정보만 갱신
+**갱신 대상 필드만** ax-hub 최신 값으로 덮어씁니다:
+- `name`, `trainingName`, `instructorName`, `tutorName`, `sessions`, `startAt`, `endAt`, `workbookUrl`, `location`, `trainingStatus`, `archived`
+
+**업무 내용 필드는 기준 데이터 값을 그대로 유지**합니다 (절대 변경·초기화 금지):
+- `status`(모든 체크박스), `memo`, `deadline`, 그리고 최상위 `notes`·`notesUpdated`·`completedNotes`·`completedNotesUpdated`
+
+> 구현 방법: 기존 항목 객체를 복사한 뒤 **갱신 대상 필드만** 새 값으로 교체하고, 업무 내용 필드는 원래 객체 값을 그대로 둡니다. `sessions`는 **날짜별 항목**으로 재생성하며 `id`는 `"session_" + companyId + "_" + n`(날짜 정렬 순서) 형식입니다.
 
 ### ax_hub_course_id가 없는 기존 항목
-사용자가 수동으로 추가한 항목이므로 건드리지 않습니다.
+사용자가 수동으로 추가한 항목이므로 **어떤 필드도** 건드리지 않습니다.
 
-### ⚠️ 담당자 외 교육 제거 (필수)
-state.json은 **해당 담당자 1명의 보드**입니다. 따라서 담당자가 맡지 않은 ax-hub 교육이 섞이면 안 됩니다.
+### 담당자 외 교육 — 삭제하지 말고 보고만
+동기화는 **절대 항목을 삭제하지 않습니다.** 다른 담당자 소유로 보이는 항목(`ax_hub_course_id`가 있으나 이 담당자의 course_id 집합에 없음)이 발견되면, **삭제하지 말고** 결과 요약에 "확인 필요 항목"으로 목록만 알려줍니다. 실제 제거 여부는 사용자가 웹앱에서 직접 판단합니다.
 
-병합을 마친 뒤, companies 배열에서 아래 조건을 **모두 만족하지 않는** 항목은 **삭제**합니다:
-- `ax_hub_course_id`가 없음 (사용자 수동 추가 항목 → 보존), **또는**
-- `ax_hub_course_id`가 **이 담당자의 course_id 집합**에 포함됨
-
-즉, `ax_hub_course_id`가 있는데 그 값이 **담당자 소유 course_id 집합에 없으면 다른 담당자의 교육**이므로 제거합니다.
-
-> **담당자 소유 course_id 집합**: 1단계 쿼리를 `WHERE c.manager_email = 'MANAGER_EMAIL'` 조건만으로(상태 필터 없이) 실행해 얻은 **전체 course_id 목록**입니다. closed/stopped 교육은 칸반보드에 표시하지 않지만(제외 대상), 소유 집합 판정에는 포함하므로 "내 종료 교육"이 남아 있더라도 삭제되지 않습니다. 칸반보드 표시 제외는 `archived=true`로 처리합니다.
-
-이 제거는 PowerShell로 일괄 처리하는 것이 안전합니다 (대량 항목 필터링). 처리 전 `state.json.bak`로 백업한 뒤, 보존/제거 건수와 제거된 항목 목록을 사용자에게 보고합니다.
+> **담당자 소유 course_id 집합**: 1단계 쿼리를 `WHERE c.manager_email = 'MANAGER_EMAIL'` 조건만으로(상태 필터 없이) 실행해 얻은 **전체 course_id 목록**입니다.
 
 ---
 
@@ -318,11 +365,15 @@ if ($supabaseUrl -and $supabaseKey) {
   - 기업명 | 교육명 | 강사명
   ...
 
-갱신됨: N건
-  - 기업명 | 교육명 | 변경 내용
+정보 갱신: N건 (업무 내용은 보존, 사실 정보만 변경)
+  - 기업명 | 교육명 | 변경된 항목(예: 튜터명, 회차 일정)
   ...
 
 변경 없음: N건
+
+확인 필요(다른 담당자로 보임): N건  ← 삭제하지 않음, 목록만 안내
+  - 기업명 | 교육명
+  ...
 
 브라우저에서 F5를 누르면 업데이트된 내용을 확인할 수 있습니다.
 ```
@@ -333,7 +384,7 @@ if ($supabaseUrl -and $supabaseKey) {
 
 - `mcp__ax-hub__query_sql`은 SELECT만 허용됩니다 (read-only).
 - **한글 인코딩 주의**: MCP 쿼리 결과가 크면 하네스가 UTF-8 파일로 저장합니다. PowerShell에서 읽을 때 `Get-Content` 기본 인코딩(CP949)으로 읽으면 한글이 깨집니다. 반드시 `[System.IO.File]::ReadAllText(path, [System.Text.Encoding]::UTF8)`을 사용하세요.
-- 2단계 쿼리는 `GROUP BY`로 **회차당 1행**만 반환합니다 — 날짜 중복 제거·시간 MIN/MAX·강사/튜터 분류가 DB에서 끝나므로 모델이 다시 집계하지 마세요. `dates`/`instructors`/`tutors`는 배열로 옵니다(배정 없으면 `null`).
+- 2단계 쿼리는 `GROUP BY cr.course_id, cs.date`로 **(교육, 날짜)당 1행**을 반환합니다(일자별 보기) — 시간 MIN/MAX·강사/튜터 분류가 DB에서 끝나므로 모델이 다시 집계하지 마세요. `date`는 스칼라, `instructors`/`tutors`는 배열로 옵니다(배정 없으면 `null`). **날짜 1행 → 세션 1개**로 매핑합니다.
 - `array_agg(...) FILTER`와 `left(qualification_id::text, 8)`로 주강사/기술튜터를 분리합니다. qualification_id는 `uuid` 타입이라 `::text` 캐스팅이 필요합니다.
 - `start_time` / `end_time`은 소수 시간(double). 변환 공식: `HH = Math.floor(t)`, `MM = Math.round((t % 1) * 60)`
 - HHMM 정수(`1330` 등) 판별: `t >= 100` 이면 HHMM 형식으로 처리.
