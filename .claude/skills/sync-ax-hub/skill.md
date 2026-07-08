@@ -330,27 +330,26 @@ if ($supabaseUrl -and $supabaseKey) {
     try {
         $ts = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         $sbBody = '{"owner":' + ('"' + $ownerName + '"') + ',"data":' + $json + ',"updated_at":"' + $ts + '"}'
-        $sbBytes = [System.Text.Encoding]::UTF8.GetBytes($sbBody)
-        $sbReq = [System.Net.WebRequest]::Create("$supabaseUrl/rest/v1/user_states")
-        $sbReq.Method = "POST"
-        $sbReq.ContentType = "application/json; charset=utf-8"
-        $sbReq.ContentLength = $sbBytes.Length
-        $sbReq.Headers.Add("apikey", $supabaseKey)
-        $sbReq.Headers.Add("Authorization", "Bearer $supabaseKey")
-        $sbReq.Headers.Add("Prefer", "resolution=merge-duplicates,return=minimal")
-        $sbStream = $sbReq.GetRequestStream()
-        $sbStream.Write($sbBytes, 0, $sbBytes.Length)
-        $sbStream.Close()
-        $sbResp = $sbReq.GetResponse()
-        Write-Host "Supabase POST 성공: HTTP $([int]$sbResp.StatusCode) — Vercel 앱 동기화 완료"
-        $sbResp.Close()
+        $sbHeaders = @{
+            apikey = $supabaseKey
+            Authorization = "Bearer $supabaseKey"
+            "Content-Type" = "application/json; charset=utf-8"
+            Prefer = "resolution=merge-duplicates,return=representation"
+        }
+        # on_conflict=owner 필수: 없으면 PostgREST가 upsert 대상을 알 수 없어 갱신 없이 200을 반환할 수 있음
+        $sbResp = Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/user_states?on_conflict=owner" -Method POST -Headers $sbHeaders -Body ([System.Text.Encoding]::UTF8.GetBytes($sbBody))
+        $companyCount = $sbResp[0].data.companies.Count
+        Write-Host "Supabase POST 성공 — companies: $companyCount 건 반영 확인, Vercel 앱 동기화 완료"
     } catch {
         Write-Host "Supabase POST 실패: $($_.Exception.Message)"
+        if ($_.ErrorDetails) { Write-Host $_.ErrorDetails.Message }
     }
 } else {
     Write-Host "Supabase 자격증명 없음 — Vercel 동기화 건너뜀"
 }
 ```
+
+> **주의**: `return=representation`으로 실제 저장된 데이터를 응답받아 `companies` 건수를 확인해야 한다. `return=minimal`은 본문 없이 HTTP 200만 반환하므로, `on_conflict` 누락 등으로 데이터가 실제로 갱신되지 않았어도 "성공"처럼 보일 수 있다(2026-07-07 실측: 신규 교육 2건이 로컬 파일에는 저장됐으나 Supabase에는 반영되지 않은 채 200이 반환됨).
 
 ---
 
