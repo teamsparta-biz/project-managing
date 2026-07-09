@@ -9,3 +9,6 @@ sync-owners.txt
 sync-daily.log
 .vscode/
 .claude/settings.local.json
+
+.vercel
+.env*
