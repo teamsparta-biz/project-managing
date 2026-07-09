@@ -1048,6 +1048,7 @@ function renderBody() {
               <button class="archive-btn" onclick="openEduOperationShare(${c.id})" title="교육운영채널에 교육 공유"><i class="ti ti-speakerphone"></i>교육운영내용</button>
               <button class="archive-btn" onclick="openLectureDraftSend(${c.id})" title="고객사에 교안 초안 링크 송부 메일 초안 작성"><i class="ti ti-file-text"></i>고객사 교안 송부</button>
               <button class="archive-btn" onclick="openTaxInvoiceInquiry(${c.id})" title="세금계산서 발행 문의 메일 초안 작성"><i class="ti ti-receipt-tax"></i>세금계산서발행</button>
+              <button class="archive-btn" onclick="openParkingCheckInquiry(${c.id})" title="고객사에 주차 지원 가능 여부 문의 메일 초안 작성"><i class="ti ti-car"></i>주차여부확인</button>
             </div>
           </div>
           <div class="footer-sessions">
@@ -1794,6 +1795,23 @@ function openEmailDraft(companyId) {
   if (c.contactEmail) parts.push(`담당자이메일: ${c.contactEmail}`);
 
   const cmd = parts.join(' / ');
+  navigator.clipboard.writeText(cmd).then(() => {
+    showCopyToast(cmd);
+  }).catch(() => {
+    prompt('아래 명령어를 복사해서 Claude Code에 붙여넣으세요:', cmd);
+  });
+}
+
+function openParkingCheckInquiry(companyId) {
+  const c = state.companies.find(c => c.id === companyId);
+  if (!c) return;
+  const parts = ['/parking-check-inquiry'];
+  if (c.name) parts.push(`기업명:${c.name}`);
+  if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
+  const dateLines = buildRecruitmentScheduleLines(c);
+  if (dateLines.length) parts.push(`교육일정:${dateLines.join(', ')}`);
+  if (c.contactEmail) parts.push(`담당자이메일:${c.contactEmail}`);
+  const cmd = parts.join(' ');
   navigator.clipboard.writeText(cmd).then(() => {
     showCopyToast(cmd);
   }).catch(() => {
