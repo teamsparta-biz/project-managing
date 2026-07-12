@@ -1048,10 +1048,11 @@ function renderBody() {
               <button class="archive-btn" onclick="openInstructorRecruitment(${c.id})" title="주강사 구인 글 복사"><i class="ti ti-user-star"></i>주강사 구인</button>
               <button class="archive-btn" onclick="openTutorRecruitment(${c.id})" title="기술튜터 구인 글 복사"><i class="ti ti-users"></i>기술튜터 구인</button>
               <button class="archive-btn" onclick="openUrgentTechTutorRecruit(${c.id})" title="가용 기술튜터 확인 후 선별 인원에게 개별 Slack DM 발송"><i class="ti ti-user-exclamation"></i>기술튜터 긴급구인</button>
+              <button class="archive-btn" onclick="openUrgentMainInstructorRecruit(${c.id})" title="가용 주강사 확인 후 선별 인원에게 개별 Slack DM 발송"><i class="ti ti-user-exclamation"></i>주강사 긴급구인</button>
               <button class="archive-btn" onclick="openSlackDM(${c.id})" title="Slack DM방 개설"><i class="ti ti-brand-slack"></i>SlackDM방 개설</button>
               <button class="archive-btn" onclick="openEduOperationShare(${c.id})" title="교육운영채널에 교육 공유"><i class="ti ti-speakerphone"></i>교육운영내용</button>
               <button class="archive-btn" onclick="openTutorInfoShare(${c.id})" title="남은 교육 일자의 강사·튜터 연락처/차량번호 조회"><i class="ti ti-car"></i>튜터정보전달</button>
-              <button class="archive-btn" onclick="openLectureShare(${c.id})" title="노션 교안 초대용 강사·기술튜터 이메일 목록 조회"><i class="ti ti-file-text"></i>교안 공유</button>
+              <button class="archive-btn" onclick="openLectureShare(${c.id})" title="노션 교안 초대용 강사·기술튜터 이메일 목록 조회"><i class="ti ti-file-text"></i>노션 강사 초대</button>
               <button class="archive-btn" onclick="openTaxInvoiceInquiry(${c.id})" title="세금계산서 발행 문의 메일 초안 작성"><i class="ti ti-receipt-tax"></i>세금계산서발행</button>
               <button class="archive-btn" onclick="openSatisfactionShare(${c.id})" title="만족도조사 결과를 고객사 담당자·담당 주강사에게 전달"><i class="ti ti-mood-smile"></i>만족도결과전달</button>
             </div>
@@ -1621,44 +1622,8 @@ function updateNotesPreviewFull() {
 function openSlackDM(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
-  const fmtDate = (s) => {
-    if (!s) return '';
-    const d = new Date(s);
-    if (isNaN(d)) return '';
-    const mo = String(d.getMonth() + 1).padStart(2, '0');
-    const da = String(d.getDate()).padStart(2, '0');
-    const h = String(d.getHours()).padStart(2, '0');
-    const mi = String(d.getMinutes()).padStart(2, '0');
-    return `${d.getFullYear()}.${mo}.${da} ${h}:${mi}`;
-  };
   const parts = ['/tutor-onboarding', c.name];
   if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
-  const fmtSession = (s) => {
-    if (!s.dates || !s.dates.length || !s.dates[0]) return '';
-    const time = [s.startTime, s.endTime].filter(Boolean).join('~');
-    const dateStr = s.dates.length === 1
-      ? s.dates[0].replace(/-/g, '.')
-      : s.dates[0].replace(/-/g, '.') + '~' + s.dates[s.dates.length - 1].replace(/-/g, '.');
-    return dateStr + (time ? ' ' + time : '');
-  };
-  const sessions = c.sessions || [];
-  if (sessions.length === 1) {
-    const s = sessions[0];
-    if (s.instructorName) parts.push(`강사:${s.instructorName}`);
-    if (s.tutorName) parts.push(`튜터:${s.tutorName}`);
-    const dateStr = fmtSession(s);
-    if (dateStr) parts.push(`교육일자:${dateStr}`);
-  } else if (sessions.length >= 2) {
-    sessions.forEach((s, i) => {
-      if (s.instructorName) parts.push(`강사${i + 1}:${s.instructorName}`);
-      const dateStr = fmtSession(s);
-      if (dateStr) parts.push(`${i + 1}회차교육일자:${dateStr}`);
-    });
-    const tutors = [...new Set(sessions.map(s => s.tutorName).filter(Boolean))];
-    if (tutors.length) parts.push(`튜터:${tutors.join(',')}`);
-  }
-  if (c.location) parts.push(`장소:${c.location}`);
-  if (c.workbookUrl) parts.push(`교안:${c.workbookUrl}`);
   const cmd = parts.join(' ');
   navigator.clipboard.writeText(cmd).then(() => {
     showCopyToast(cmd);
@@ -1789,6 +1754,31 @@ function openUrgentTechTutorRecruit(companyId) {
   const cmd = parts.join(' ');
   navigator.clipboard.writeText(cmd).then(() => {
     showCopyToast('기술튜터 긴급구인 명령 복사됨 — Claude Code에 붙여넣으면 가용 인원을 먼저 보여드립니다');
+  }).catch(() => {
+    prompt('아래 명령을 복사해서 Claude Code에 붙여넣으세요:', cmd);
+  });
+}
+
+function openUrgentMainInstructorRecruit(companyId) {
+  const c = state.companies.find(c => c.id === companyId);
+  if (!c) return;
+  const dateSet = new Set();
+  (c.sessions || []).forEach(s => {
+    (s.dates && s.dates.length ? s.dates : (s.date ? [s.date] : [])).forEach(d => { if (d) dateSet.add(d); });
+  });
+  const dates = [...dateSet].sort();
+  const firstSession = (c.sessions || [])[0] || {};
+  const parts = ['/urgent-main-instructor-recruit'];
+  if (c.name) parts.push(`기업명:${c.name}`);
+  if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
+  if (c.location) parts.push(`장소:${c.location}`);
+  if (dates.length) parts.push(`일정:${dates.join(',')}`);
+  if (firstSession.startTime && firstSession.endTime) parts.push(`시간:${firstSession.startTime}~${firstSession.endTime}`);
+  const owner = getCurrentOwner();
+  if (owner) parts.push(`담당자:${owner}`);
+  const cmd = parts.join(' ');
+  navigator.clipboard.writeText(cmd).then(() => {
+    showCopyToast('주강사 긴급구인 명령 복사됨 — Claude Code에 붙여넣으면 가용 인원을 먼저 보여드립니다');
   }).catch(() => {
     prompt('아래 명령을 복사해서 Claude Code에 붙여넣으세요:', cmd);
   });
