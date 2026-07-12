@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ax-hub__query_sql",
+      "PowerShell($ownerName = *)",
+      "Write(//g/내 드라이브/Project_managing_tool/data/state.json)"
+    ]
+  }
+}

@@ -1051,7 +1051,7 @@ function renderBody() {
               <button class="archive-btn" onclick="openSlackDM(${c.id})" title="Slack DM방 개설"><i class="ti ti-brand-slack"></i>SlackDM방 개설</button>
               <button class="archive-btn" onclick="openEduOperationShare(${c.id})" title="교육운영채널에 교육 공유"><i class="ti ti-speakerphone"></i>교육운영내용</button>
               <button class="archive-btn" onclick="openTutorInfoShare(${c.id})" title="남은 교육 일자의 강사·튜터 연락처/차량번호 조회"><i class="ti ti-car"></i>튜터정보전달</button>
-              <button class="archive-btn" onclick="openLectureDraftSend(${c.id})" title="고객사에 교안 초안 링크 송부 메일 초안 작성"><i class="ti ti-file-text"></i>고객사 교안 송부</button>
+              <button class="archive-btn" onclick="openLectureShare(${c.id})" title="노션 교안 초대용 강사·기술튜터 이메일 목록 조회"><i class="ti ti-file-text"></i>교안 공유</button>
               <button class="archive-btn" onclick="openTaxInvoiceInquiry(${c.id})" title="세금계산서 발행 문의 메일 초안 작성"><i class="ti ti-receipt-tax"></i>세금계산서발행</button>
               <button class="archive-btn" onclick="openSatisfactionShare(${c.id})" title="만족도조사 결과를 고객사 담당자·담당 주강사에게 전달"><i class="ti ti-mood-smile"></i>만족도결과전달</button>
             </div>
@@ -1694,13 +1694,12 @@ function openTaxInvoiceInquiry(companyId) {
   });
 }
 
-function openLectureDraftSend(companyId) {
+function openLectureShare(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
-  const parts = ['/lecture-draft-send'];
+  const parts = ['/lecture-share'];
+  if (c.name) parts.push(`기업명:${c.name}`);
   if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
-  if (c.workbookUrl) parts.push(`교안링크:${c.workbookUrl}`);
-  if (c.contactEmail) parts.push(`담당자이메일:${c.contactEmail}`);
   const cmd = parts.join(' ');
   navigator.clipboard.writeText(cmd).then(() => {
     showCopyToast(cmd);
