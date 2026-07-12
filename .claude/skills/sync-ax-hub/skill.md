@@ -43,7 +43,7 @@ allowed-tools: mcp__ax-hub__query_sql, mcp__ax-hub__list_tables, mcp__ax-hub__de
     ↓
 [5단계] 데이터 병합 — 신규 추가 + 기존은 사실정보만 갱신 (업무 내용 status·memo·notes 보존)
     ↓
-[6단계] PowerShell로 http://localhost:3000/api/state 에 POST
+[6단계] Write로 state.json 저장 후 PowerShell로 Supabase에 POST (로컬 서버 POST는 생략 — 항상 꺼져 있음)
     ↓
 [7단계] 동기화 결과 요약 출력
 ```
@@ -180,12 +180,12 @@ $statePath = "G:\내 드라이브\Project_managing_tool\data\state.json"
 $envPath   = "G:\내 드라이브\Project_managing_tool\.env"
 $supabaseUrl = ""; $supabaseKey = ""
 Get-Content $envPath | ForEach-Object {
-    if ($_ -match '^SUPABASE_URL=(.+)$') { $supabaseUrl = $Matches[1].Trim() }
-    if ($_ -match '^SUPABASE_KEY=(.+)$') { $supabaseKey = $Matches[1].Trim() }
+    if ($_ -match '^SUPABASE_URL=(.+)$') { $supabaseUrl = $Matches[1].Trim().Trim("'").Trim('"') }
+    if ($_ -match '^SUPABASE_KEY=(.+)$') { $supabaseKey = $Matches[1].Trim().Trim("'").Trim('"') }
 }
 $headers = @{ apikey = $supabaseKey; Authorization = "Bearer $supabaseKey" }
 $url = "$supabaseUrl/rest/v1/user_states?owner=eq." + [Uri]::EscapeDataString($ownerName) + "&select=data"
-$rows = Invoke-RestMethod -Uri $url -Headers $headers -Method GET
+$rows = Invoke-RestMethod -Uri $url -Headers $headers -Method GET -UserAgent "PowerShell-SyncAxHub/1.0"
 if ($rows -and $rows.Count -gt 0 -and $rows[0].data) {
     # 백업 후 Supabase 데이터를 로컬에 반영 (병합 기준)
     if (Test-Path $statePath) { Copy-Item $statePath "$statePath.bak" -Force }
@@ -287,10 +287,12 @@ if ($rows -and $rows.Count -gt 0 -and $rows[0].data) {
 - 경로: `G:\내 드라이브\Project_managing_tool\data\state.json`
 - 내용: 병합된 state JSON (pretty-print, 들여쓰기 2칸)
 
-### 6-2. PowerShell로 파일에서 읽어 POST
+### 6-2. PowerShell로 파일에서 읽어 Supabase POST
 
 Write 도구로 파일 저장이 완료된 후, 아래 PowerShell을 **PowerShell 도구**로 실행합니다.  
 JSON은 파일에서 읽으므로 한글 인코딩 문제가 없습니다.
+
+> **로컬 서버 POST는 시도하지 않습니다.** 사용자 환경에서는 로컬 서버(`localhost:3000`)가 항상 꺼져 있는 것이 일상이라, 매번 연결을 시도했다 실패하는 데만 수 초가 낭비됩니다(2026-07-11 실측: `localhost` 기준 4236ms). 웹앱은 Vercel에 배포되어 있고 Supabase만 실제 동기화 대상이므로, 파일 저장(6-1) 후 곧바로 Supabase POST만 수행합니다.
 
 ```powershell
 $ownerName = '<OWNER_NAME>'  # 예: '이다은', '송찬호'
@@ -300,30 +302,13 @@ $statePath = "G:\내 드라이브\Project_managing_tool\data\state.json"
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $json = [System.IO.File]::ReadAllText($statePath, $utf8NoBom)
 
-# ① 로컬 서버 POST
-try {
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-    $req = [System.Net.WebRequest]::Create("http://localhost:3000/api/state?owner=" + [Uri]::EscapeDataString($ownerName))
-    $req.Method = "POST"
-    $req.ContentType = "application/json; charset=utf-8"
-    $req.ContentLength = $bytes.Length
-    $stream = $req.GetRequestStream()
-    $stream.Write($bytes, 0, $bytes.Length)
-    $stream.Close()
-    $resp = $req.GetResponse()
-    Write-Host "로컬 POST 성공: HTTP $([int]$resp.StatusCode)"
-    $resp.Close()
-} catch {
-    Write-Host "로컬 서버 미실행 — 파일은 이미 저장됨"
-}
-
-# ② Supabase POST (Vercel 앱 동기화)
+# Supabase POST (Vercel 앱 동기화)
 $envPath = "G:\내 드라이브\Project_managing_tool\.env"
 $supabaseUrl = ""
 $supabaseKey = ""
 Get-Content $envPath | ForEach-Object {
-    if ($_ -match '^SUPABASE_URL=(.+)$') { $supabaseUrl = $Matches[1].Trim() }
-    if ($_ -match '^SUPABASE_KEY=(.+)$') { $supabaseKey = $Matches[1].Trim() }
+    if ($_ -match '^SUPABASE_URL=(.+)$') { $supabaseUrl = $Matches[1].Trim().Trim("'").Trim('"') }
+    if ($_ -match '^SUPABASE_KEY=(.+)$') { $supabaseKey = $Matches[1].Trim().Trim("'").Trim('"') }
 }
 
 if ($supabaseUrl -and $supabaseKey) {
@@ -337,7 +322,8 @@ if ($supabaseUrl -and $supabaseKey) {
             Prefer = "resolution=merge-duplicates,return=representation"
         }
         # on_conflict=owner 필수: 없으면 PostgREST가 upsert 대상을 알 수 없어 갱신 없이 200을 반환할 수 있음
-        $sbResp = Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/user_states?on_conflict=owner" -Method POST -Headers $sbHeaders -Body ([System.Text.Encoding]::UTF8.GetBytes($sbBody))
+        # -UserAgent 필수: 기본 Invoke-RestMethod User-Agent는 Supabase가 "브라우저에서의 secret key 사용"으로 오인해 403 처리함
+        $sbResp = Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/user_states?on_conflict=owner" -Method POST -Headers $sbHeaders -Body ([System.Text.Encoding]::UTF8.GetBytes($sbBody)) -UserAgent "PowerShell-SyncAxHub/1.0"
         $companyCount = $sbResp[0].data.companies.Count
         Write-Host "Supabase POST 성공 — companies: $companyCount 건 반영 확인, Vercel 앱 동기화 완료"
     } catch {
@@ -389,6 +375,6 @@ if ($supabaseUrl -and $supabaseKey) {
 - HHMM 정수(`1330` 등) 판별: `t >= 100` 이면 HHMM 형식으로 처리.
 - 세션이 없는 교육은 `startAt`/`endAt` = `""`, `sessions` 배열은 dates가 빈 항목 1개로 초기화합니다.
 - `sessions[i].id`는 `"session_" + companyId + "_" + (i+1)` 형식으로 생성합니다.
-- 서버가 실행 중이지 않으면 파일 직접 쓰기로 fallback합니다.
+- **로컬 서버 POST는 시도하지 않습니다.** 사용자 환경에서 로컬 서버는 항상 꺼져 있어(2026-07-11 확인), `localhost:3000` 연결 시도는 실패까지 4초 이상 걸리는 순수 낭비입니다. 6-1에서 Write 도구로 파일만 저장하고, 6-2는 Supabase POST만 수행합니다.
 - 브라우저 새로고침(F5) 전까지는 변경 내용이 화면에 반영되지 않습니다.
 - **담당자 외 교육 금지**: state.json은 담당자 1명의 보드이므로, 5단계의 "담당자 외 교육 제거"를 반드시 수행해 다른 담당자의 ax-hub 교육이 섞이지 않게 합니다.
