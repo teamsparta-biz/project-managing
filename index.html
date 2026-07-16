@@ -261,6 +261,27 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .hint { font-size: 12px; color: var(--text-tertiary); margin-top: 14px; line-height: 1.7; padding: 0 4px; }
 .empty-row td { padding: 40px; color: var(--text-tertiary); font-size: 13px; }
 
+.card-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+@media (max-width: 1500px) { .card-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 1200px) { .card-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 860px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .card-grid { grid-template-columns: 1fr; } }
+.card-grid-empty { grid-column: 1 / -1; padding: 40px; color: var(--text-tertiary); font-size: 13px; text-align: center; }
+.edu-card { border: 1px solid var(--border-secondary); border-radius: var(--radius-lg); background: var(--bg-primary); padding: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 9px; transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s; }
+.edu-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-2px); border-color: var(--border-tertiary); }
+.edu-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.edu-card-name { font-size: 14px; font-weight: 600; color: var(--text-primary); line-height: 1.35; word-break: break-all; }
+.edu-card-training { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.35; word-break: break-all; }
+.edu-card-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-tertiary); }
+.edu-card-meta i { font-size: 13px; flex-shrink: 0; }
+.edu-card-progress { display: flex; align-items: center; gap: 8px; margin-top: auto; }
+.edu-card-progress-bar { flex: 1; height: 5px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden; }
+.edu-card-progress-fill { height: 100%; background: var(--color-status-done); border-radius: 999px; }
+.edu-card-progress-num { font-size: 11px; color: var(--text-tertiary); flex-shrink: 0; }
+.edu-card-archived-badge { align-self: flex-start; font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: var(--bg-tertiary); color: var(--text-tertiary); display: inline-flex; align-items: center; gap: 4px; }
+.flash-highlight { animation: flash-highlight-anim 1.4s ease; }
+@keyframes flash-highlight-anim { 0%, 15% { box-shadow: 0 0 0 3px var(--color-status-progress) inset; } 100% { box-shadow: none; } }
+
 .notes-section { margin-top: 32px; background: var(--bg-primary); border: 1px solid var(--border-secondary); border-radius: var(--radius-lg); overflow: hidden; }
 .notes-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-secondary); flex-wrap: wrap; gap: 10px; }
 .notes-header h2 { font-size: 15px; font-weight: 500; color: var(--text-primary); display: inline-flex; align-items: center; gap: 8px; }
@@ -395,27 +416,32 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
   <div class="tabs">
     <button class="tab active" id="tab-active" onclick="switchTab('active')"><i class="ti ti-progress"></i>진행 중<span class="count" id="count-active">0</span></button>
     <button class="tab" id="tab-archived" onclick="switchTab('archived')"><i class="ti ti-archive"></i>교육 완료<span class="count" id="count-archived">0</span></button>
+    <button class="tab" id="tab-overview" onclick="switchTab('overview')"><i class="ti ti-layout-grid"></i>전체보기<span class="count" id="count-overview">0</span></button>
   </div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr id="head-section"></tr>
-        <tr id="head-tasks"></tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
+  <div id="table-view">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr id="head-section"></tr>
+          <tr id="head-tasks"></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="legend">
+      <span class="legend-item"><span class="legend-dot legend-dot-0">○</span>미시작</span>
+      <span class="legend-item"><span class="legend-dot legend-dot-1"><i class="ti ti-dots"></i></span>진행 중</span>
+      <span class="legend-item"><span class="legend-dot legend-dot-2"><i class="ti ti-check"></i></span>완료</span>
+      <span class="legend-item" style="margin-left: auto;"><i class="ti ti-info-circle"></i>셀 클릭으로 상태 순환</span>
+    </div>
+    <div class="hint">
+      업무명을 <strong>더블클릭</strong>하면 수정할 수 있고, X 아이콘으로 삭제할 수 있습니다 · 업무 헤더를 좌우로 <strong>드래그</strong>하면 순서를 바꿀 수 있습니다 · 마감일은 D-3 이내면 주황색, 지난 날짜는 빨간색으로 표시됩니다 · 모든 변경 사항은 자동으로 저장됩니다
+    </div>
   </div>
 
-  <div class="legend">
-    <span class="legend-item"><span class="legend-dot legend-dot-0">○</span>미시작</span>
-    <span class="legend-item"><span class="legend-dot legend-dot-1"><i class="ti ti-dots"></i></span>진행 중</span>
-    <span class="legend-item"><span class="legend-dot legend-dot-2"><i class="ti ti-check"></i></span>완료</span>
-    <span class="legend-item" style="margin-left: auto;"><i class="ti ti-info-circle"></i>셀 클릭으로 상태 순환</span>
-  </div>
-  <div class="hint">
-    업무명을 <strong>더블클릭</strong>하면 수정할 수 있고, X 아이콘으로 삭제할 수 있습니다 · 업무 헤더를 좌우로 <strong>드래그</strong>하면 순서를 바꿀 수 있습니다 · 마감일은 D-3 이내면 주황색, 지난 날짜는 빨간색으로 표시됩니다 · 모든 변경 사항은 자동으로 저장됩니다
-  </div>
+  <div id="card-view" class="card-grid" style="display:none;"></div>
 
   <div class="notes-section">
     <div class="notes-header">
@@ -993,7 +1019,7 @@ function renderBody() {
     const tsCls = { '': 'ts-none', '세팅중': 'ts-setting', '교육중': 'ts-active', '교육종료': 'ts-ended' }[c.trainingStatus || ''] || 'ts-none';
     const tsLabel = c.trainingStatus || '미설정';
     const taskColCount = state.tasks.length + 1;
-    return `<tr>
+    return `<tr id="company-row-${c.id}">
       <td class="row-name" rowspan="2">
         <input type="text" class="company-input" value="${escAttr(c.name)}" onchange="updateField(${c.id}, 'name', this.value)" placeholder="기업명" />
         <div class="meta-row">
@@ -1081,7 +1107,8 @@ function renderSummary() {
   const archivedCount = state.companies.filter(c => c.archived).length;
   document.getElementById('count-active').textContent = activeCount;
   document.getElementById('count-archived').textContent = archivedCount;
-  const visibleCompanies = state.companies.filter(c => currentTab === 'active' ? !c.archived : c.archived);
+  document.getElementById('count-overview').textContent = state.companies.length;
+  const visibleCompanies = currentTab === 'overview' ? state.companies : state.companies.filter(c => currentTab === 'active' ? !c.archived : c.archived);
   const taskCount = state.tasks.length;
   let totalDone = 0, totalAll = 0;
   visibleCompanies.forEach(c => {
@@ -1092,7 +1119,7 @@ function renderSummary() {
     });
   });
   const pct = totalAll ? Math.round(totalDone / totalAll * 100) : 0;
-  const label = currentTab === 'active' ? '진행 중' : '교육 완료';
+  const label = currentTab === 'active' ? '진행 중' : (currentTab === 'archived' ? '교육 완료' : '전체');
   document.getElementById('summary').innerHTML = `<strong>${label} ${visibleCompanies.length}개</strong> · <strong>${taskCount}개 업무</strong> · 평균 진행률 <strong>${pct}%</strong>`;
 }
 
@@ -1147,7 +1174,63 @@ function onNotesInput(e) {
 function render() {
   // 저장을 가장 먼저 예약 — 이후 렌더 단계에서 예외가 나도 칸반보드 선택값(체크 상태 등)이 DB에 반드시 저장되도록.
   saveState();
-  renderHead(); renderBody(); renderSummary(); renderNotes(); setupStickyHeader();
+  renderHead(); renderBody(); renderCardView(); renderSummary(); renderNotes(); setupStickyHeader();
+}
+
+// ─────────────────────────────────────────────────────────────
+// 전체보기 (카드형)
+// ─────────────────────────────────────────────────────────────
+function renderCardView() {
+  const grid = document.getElementById('card-view');
+  if (!grid) return;
+  const list = state.companies.slice().sort((a, b) => {
+    const getEarliestDate = c => {
+      const dates = (c.sessions || []).flatMap(s => s.dates || []).filter(Boolean);
+      if (dates.length) return dates.sort()[0];
+      return c.startAt || null;
+    };
+    const da = getEarliestDate(a), db = getEarliestDate(b);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return new Date(da) - new Date(db);
+  });
+  if (!list.length) {
+    grid.innerHTML = `<div class="card-grid-empty"><i class="ti ti-inbox" style="font-size:28px; color: var(--text-tertiary); display:block; margin-bottom:10px;"></i>등록된 교육이 없습니다</div>`;
+    return;
+  }
+  const tsClsMap = { '': 'ts-none', '세팅중': 'ts-setting', '교육중': 'ts-active', '교육종료': 'ts-ended' };
+  grid.innerHTML = list.map(c => {
+    const total = state.tasks.length || 1;
+    const done = state.tasks.filter(t => (c.status && c.status[t.id]) === 2).length;
+    const partial = state.tasks.filter(t => (c.status && c.status[t.id]) === 1).length;
+    const pct = Math.round((done + partial * 0.5) / total * 100);
+    const tsCls = tsClsMap[c.trainingStatus || ''] || 'ts-none';
+    const tsLabel = c.trainingStatus || '미설정';
+    const sessions = c.sessions || [];
+    const idx = sessions.length ? defaultSessionIdx(c) : 0;
+    const s = sessions[idx];
+    const dates = (s && s.dates) || [];
+    const dateLabel = dates.length ? (dates.length > 1 ? `${dates[0]} 외 ${dates.length - 1}건` : dates[0]) : '일정 미정';
+    const staffLabel = s ? [s.instructorName, s.tutorName].filter(Boolean).join(' · ') : '';
+    return `<div class="edu-card" onclick="jumpToCompany(${c.id})" title="클릭하면 해당 교육으로 이동합니다">
+      <div class="edu-card-header">
+        <div>
+          <div class="edu-card-name">${escHtml(c.name)}</div>
+          ${c.trainingName ? `<div class="edu-card-training">${escHtml(c.trainingName)}</div>` : ''}
+        </div>
+        <span class="training-status-badge ${tsCls}" style="pointer-events:none;"><span class="status-dot"></span>${tsLabel}</span>
+      </div>
+      ${c.location ? `<div class="edu-card-meta"><i class="ti ti-map-pin"></i><span>${escHtml(c.location)}</span></div>` : ''}
+      <div class="edu-card-meta"><i class="ti ti-calendar-event"></i><span>${dateLabel}</span></div>
+      <div class="edu-card-meta"><i class="ti ti-user"></i><span>${staffLabel ? escHtml(staffLabel) : '강사·튜터 미배정'}</span></div>
+      <div class="edu-card-progress">
+        <div class="edu-card-progress-bar"><div class="edu-card-progress-fill" style="width:${pct}%;"></div></div>
+        <span class="edu-card-progress-num">${pct}%</span>
+      </div>
+      ${c.archived ? `<span class="edu-card-archived-badge"><i class="ti ti-archive"></i>교육 완료</span>` : ''}
+    </div>`;
+  }).join('');
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1409,7 +1492,23 @@ function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-active').classList.toggle('active', tab === 'active');
   document.getElementById('tab-archived').classList.toggle('active', tab === 'archived');
+  document.getElementById('tab-overview').classList.toggle('active', tab === 'overview');
+  document.getElementById('table-view').style.display = tab === 'overview' ? 'none' : '';
+  document.getElementById('card-view').style.display = tab === 'overview' ? 'grid' : 'none';
   render();
+}
+
+function jumpToCompany(id) {
+  const c = state.companies.find(c => c.id === id);
+  if (!c) return;
+  switchTab(c.archived ? 'archived' : 'active');
+  setTimeout(() => {
+    const row = document.getElementById('company-row-' + id);
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('flash-highlight');
+    setTimeout(() => row.classList.remove('flash-highlight'), 1500);
+  }, 50);
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -40,10 +40,12 @@ allowed-tools: mcp__ax-hub__query_sql, mcp__ax-hub__list_tables, mcp__ax-hub__de
 [3단계] 교안 링크 조회 (workbooks — full_url / shorten_url)
     ↓
 [4단계] 현재 상태를 Supabase에서 GET (칸반보드 내용 = 병합 기준). 로컬 state.json은 fallback
+       — 이때 받아온 updated_at을 "기준 시각"으로 저장해둔다
     ↓
 [5단계] 데이터 병합 — 신규 추가 + 기존은 사실정보만 갱신 (업무 내용 status·memo·notes 보존)
     ↓
-[6단계] Write로 state.json 저장 후 PowerShell로 Supabase에 POST (로컬 서버 POST는 생략 — 항상 꺼져 있음)
+[6단계] Write로 state.json 저장 → POST 직전 Supabase updated_at 재확인(동시편집 감지) → 이상 없으면 POST
+       (로컬 서버 POST는 생략 — 항상 꺼져 있음)
     ↓
 [7단계] 동기화 결과 요약 출력
 ```
@@ -174,9 +176,12 @@ WHERE course_id IN (/* 1단계 course_id 목록 */);
 
 아래 PowerShell을 실행해 담당자의 현재 state를 Supabase에서 받아 `data\state.json`에 **덮어쓴 뒤** 그 파일을 Read 도구로 읽습니다. 이 값이 병합의 기준(base)입니다.
 
+> **동시편집 감지용 기준 시각 저장**: 이 GET 시점에 Supabase가 가진 `updated_at`을 `data\.sync_baseline_<OWNER_NAME>.json`에 함께 저장해둡니다. 6-2단계에서 POST 직전 이 값을 다시 대조해, 그 사이 사용자가 웹앱에서 칸반보드를 편집했는지(즉 Supabase의 updated_at이 바뀌었는지) 확인합니다. 이 파일이 없으면 동시편집 감지를 건너뛸 수밖에 없으므로 반드시 생성합니다.
+
 ```powershell
 $ownerName = '<OWNER_NAME>'  # 예: '송찬호'
 $statePath = "G:\내 드라이브\Project_managing_tool\data\state.json"
+$baselinePath = "G:\내 드라이브\Project_managing_tool\data\.sync_baseline_$ownerName.json"
 $envPath   = "G:\내 드라이브\Project_managing_tool\.env"
 $supabaseUrl = ""; $supabaseKey = ""
 Get-Content $envPath | ForEach-Object {
@@ -184,7 +189,7 @@ Get-Content $envPath | ForEach-Object {
     if ($_ -match '^SUPABASE_KEY=(.+)$') { $supabaseKey = $Matches[1].Trim().Trim("'").Trim('"') }
 }
 $headers = @{ apikey = $supabaseKey; Authorization = "Bearer $supabaseKey" }
-$url = "$supabaseUrl/rest/v1/user_states?owner=eq." + [Uri]::EscapeDataString($ownerName) + "&select=data"
+$url = "$supabaseUrl/rest/v1/user_states?owner=eq." + [Uri]::EscapeDataString($ownerName) + "&select=data,updated_at"
 $rows = Invoke-RestMethod -Uri $url -Headers $headers -Method GET -UserAgent "PowerShell-SyncAxHub/1.0"
 if ($rows -and $rows.Count -gt 0 -and $rows[0].data) {
     # 백업 후 Supabase 데이터를 로컬에 반영 (병합 기준)
@@ -192,14 +197,18 @@ if ($rows -and $rows.Count -gt 0 -and $rows[0].data) {
     $json = ($rows[0].data | ConvertTo-Json -Depth 100)
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($statePath, $json, $utf8NoBom)
-    Write-Host "Supabase 현재 상태를 기준으로 로드함 (companies: $($rows[0].data.companies.Count)건)"
+    # 동시편집 감지를 위해 이 시점의 updated_at을 기준 시각으로 저장
+    $baseline = @{ owner = $ownerName; updated_at = $rows[0].updated_at } | ConvertTo-Json -Compress
+    [System.IO.File]::WriteAllText($baselinePath, $baseline, $utf8NoBom)
+    Write-Host "Supabase 현재 상태를 기준으로 로드함 (companies: $($rows[0].data.companies.Count)건, 기준시각: $($rows[0].updated_at))"
 } else {
     Write-Host "Supabase에 데이터 없음 — 로컬 state.json을 기준으로 사용"
+    if (Test-Path $baselinePath) { Remove-Item $baselinePath -Force }
 }
 ```
 
 - **성공(Supabase에 데이터 있음)**: 로컬 `state.json`이 방금 Supabase 내용으로 채워졌습니다. 이 파일을 Read 도구로 읽어 병합 기준으로 씁니다.
-- **데이터 없음(신규 담당자 등)**: 기존 로컬 `state.json`을 그대로 기준으로 씁니다.
+- **데이터 없음(신규 담당자 등)**: 기존 로컬 `state.json`을 그대로 기준으로 씁니다. 이 경우 동시편집 감지 대상이 없으므로 기준 시각 파일은 생성하지 않습니다(있다면 삭제).
 - **어떤 경우에도 메모·체크 상태·notes를 빈 값으로 덮어쓰지 마세요.**
 
 ### 4-2. 기존 항목 식별

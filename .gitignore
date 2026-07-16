@@ -12,3 +12,4 @@ sync-daily.log
 
 .vercel
 .env*
+generated_docs/
