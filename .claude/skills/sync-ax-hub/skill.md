@@ -296,22 +296,24 @@ if ($rows -and $rows.Count -gt 0 -and $rows[0].data) {
 - 경로: `G:\내 드라이브\Project_managing_tool\data\state.json`
 - 내용: 병합된 state JSON (pretty-print, 들여쓰기 2칸)
 
-### 6-2. PowerShell로 파일에서 읽어 Supabase POST
+### 6-2. POST 직전 동시편집 확인 → Supabase POST
 
 Write 도구로 파일 저장이 완료된 후, 아래 PowerShell을 **PowerShell 도구**로 실행합니다.  
 JSON은 파일에서 읽으므로 한글 인코딩 문제가 없습니다.
+
+> **왜 필요한가**: 4-1단계 GET 이후 6-2단계 POST까지는 여러 단계(ax-hub 조회, 병합, 파일 쓰기)를 거치며 수십 초~수 분이 걸립니다. 그 사이 사용자가 웹앱에서 칸반보드를 편집(체크박스, 메모 등)하면 Supabase의 `updated_at`이 바뀝니다. 이걸 확인하지 않고 그대로 POST하면 **4-1단계 스냅샷 기준으로 병합된 값이 사용자의 방금 편집 내용을 덮어써 지워버립니다** (실제 사례: 2026-07-16, 삼성증권 항목의 메모 "7월 23일 주강사 필요"가 이런 경로로 소실된 것으로 추정됨). 그래서 POST 직전에 반드시 한 번 더 가볍게 GET하여 `updated_at`을 대조합니다.
 
 > **로컬 서버 POST는 시도하지 않습니다.** 사용자 환경에서는 로컬 서버(`localhost:3000`)가 항상 꺼져 있는 것이 일상이라, 매번 연결을 시도했다 실패하는 데만 수 초가 낭비됩니다(2026-07-11 실측: `localhost` 기준 4236ms). 웹앱은 Vercel에 배포되어 있고 Supabase만 실제 동기화 대상이므로, 파일 저장(6-1) 후 곧바로 Supabase POST만 수행합니다.
 
 ```powershell
 $ownerName = '<OWNER_NAME>'  # 예: '이다은', '송찬호'
 $statePath = "G:\내 드라이브\Project_managing_tool\data\state.json"
+$baselinePath = "G:\내 드라이브\Project_managing_tool\data\.sync_baseline_$ownerName.json"
 
 # 파일에서 UTF-8로 읽기
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $json = [System.IO.File]::ReadAllText($statePath, $utf8NoBom)
 
-# Supabase POST (Vercel 앱 동기화)
 $envPath = "G:\내 드라이브\Project_managing_tool\.env"
 $supabaseUrl = ""
 $supabaseKey = ""
@@ -321,23 +323,40 @@ Get-Content $envPath | ForEach-Object {
 }
 
 if ($supabaseUrl -and $supabaseKey) {
-    try {
-        $ts = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-        $sbBody = '{"owner":' + ('"' + $ownerName + '"') + ',"data":' + $json + ',"updated_at":"' + $ts + '"}'
-        $sbHeaders = @{
-            apikey = $supabaseKey
-            Authorization = "Bearer $supabaseKey"
-            "Content-Type" = "application/json; charset=utf-8"
-            Prefer = "resolution=merge-duplicates,return=representation"
+    # --- 동시편집 확인: 4-1단계 기준 시각 vs 지금 Supabase의 실제 updated_at ---
+    $conflict = $false
+    if (Test-Path $baselinePath) {
+        $baseline = Get-Content $baselinePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $checkHeaders = @{ apikey = $supabaseKey; Authorization = "Bearer $supabaseKey" }
+        $checkUrl = "$supabaseUrl/rest/v1/user_states?owner=eq." + [Uri]::EscapeDataString($ownerName) + "&select=updated_at"
+        $nowRows = Invoke-RestMethod -Uri $checkUrl -Headers $checkHeaders -Method GET -UserAgent "PowerShell-SyncAxHub/1.0"
+        if ($nowRows -and $nowRows.Count -gt 0 -and $nowRows[0].updated_at -ne $baseline.updated_at) {
+            $conflict = $true
+            Write-Host "⚠️ 동시편집 감지 — 4-1단계 기준시각($($baseline.updated_at))과 현재 Supabase updated_at($($nowRows[0].updated_at))이 다릅니다."
+            Write-Host "그 사이 사용자가 웹앱에서 칸반보드를 편집했을 가능성이 있어 POST를 중단합니다. 4단계부터 다시 GET하여 최신 상태 위에 재병합해주세요."
         }
-        # on_conflict=owner 필수: 없으면 PostgREST가 upsert 대상을 알 수 없어 갱신 없이 200을 반환할 수 있음
-        # -UserAgent 필수: 기본 Invoke-RestMethod User-Agent는 Supabase가 "브라우저에서의 secret key 사용"으로 오인해 403 처리함
-        $sbResp = Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/user_states?on_conflict=owner" -Method POST -Headers $sbHeaders -Body ([System.Text.Encoding]::UTF8.GetBytes($sbBody)) -UserAgent "PowerShell-SyncAxHub/1.0"
-        $companyCount = $sbResp[0].data.companies.Count
-        Write-Host "Supabase POST 성공 — companies: $companyCount 건 반영 확인, Vercel 앱 동기화 완료"
-    } catch {
-        Write-Host "Supabase POST 실패: $($_.Exception.Message)"
-        if ($_.ErrorDetails) { Write-Host $_.ErrorDetails.Message }
+    }
+
+    if (-not $conflict) {
+        try {
+            $ts = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+            $sbBody = '{"owner":' + ('"' + $ownerName + '"') + ',"data":' + $json + ',"updated_at":"' + $ts + '"}'
+            $sbHeaders = @{
+                apikey = $supabaseKey
+                Authorization = "Bearer $supabaseKey"
+                "Content-Type" = "application/json; charset=utf-8"
+                Prefer = "resolution=merge-duplicates,return=representation"
+            }
+            # on_conflict=owner 필수: 없으면 PostgREST가 upsert 대상을 알 수 없어 갱신 없이 200을 반환할 수 있음
+            # -UserAgent 필수: 기본 Invoke-RestMethod User-Agent는 Supabase가 "브라우저에서의 secret key 사용"으로 오인해 403 처리함
+            $sbResp = Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/user_states?on_conflict=owner" -Method POST -Headers $sbHeaders -Body ([System.Text.Encoding]::UTF8.GetBytes($sbBody)) -UserAgent "PowerShell-SyncAxHub/1.0"
+            $companyCount = $sbResp[0].data.companies.Count
+            Write-Host "Supabase POST 성공 — companies: $companyCount 건 반영 확인, Vercel 앱 동기화 완료"
+            if (Test-Path $baselinePath) { Remove-Item $baselinePath -Force }
+        } catch {
+            Write-Host "Supabase POST 실패: $($_.Exception.Message)"
+            if ($_.ErrorDetails) { Write-Host $_.ErrorDetails.Message }
+        }
     }
 } else {
     Write-Host "Supabase 자격증명 없음 — Vercel 동기화 건너뜀"
@@ -345,6 +364,8 @@ if ($supabaseUrl -and $supabaseKey) {
 ```
 
 > **주의**: `return=representation`으로 실제 저장된 데이터를 응답받아 `companies` 건수를 확인해야 한다. `return=minimal`은 본문 없이 HTTP 200만 반환하므로, `on_conflict` 누락 등으로 데이터가 실제로 갱신되지 않았어도 "성공"처럼 보일 수 있다(2026-07-07 실측: 신규 교육 2건이 로컬 파일에는 저장됐으나 Supabase에는 반영되지 않은 채 200이 반환됨).
+
+> **동시편집이 감지된 경우**: POST는 자동 중단되며, 사용자가 그 사이 만든 편집 내용을 잃지 않도록 4-1단계부터 다시 실행해(최신 Supabase 상태를 새 기준으로 GET) 5단계 병합을 재수행한 뒤 6단계를 다시 시도합니다. 같은 충돌이 반복되면 사용자에게 상황을 알리고 수동 확인을 요청합니다.
 
 ---
 
@@ -387,3 +408,4 @@ if ($supabaseUrl -and $supabaseKey) {
 - **로컬 서버 POST는 시도하지 않습니다.** 사용자 환경에서 로컬 서버는 항상 꺼져 있어(2026-07-11 확인), `localhost:3000` 연결 시도는 실패까지 4초 이상 걸리는 순수 낭비입니다. 6-1에서 Write 도구로 파일만 저장하고, 6-2는 Supabase POST만 수행합니다.
 - 브라우저 새로고침(F5) 전까지는 변경 내용이 화면에 반영되지 않습니다.
 - **담당자 외 교육 금지**: state.json은 담당자 1명의 보드이므로, 5단계의 "담당자 외 교육 제거"를 반드시 수행해 다른 담당자의 ax-hub 교육이 섞이지 않게 합니다.
+- **동시편집 감지용 사이드카 파일**: `data\.sync_baseline_<OWNER_NAME>.json`은 4-1~6-2단계 사이에서만 쓰이는 임시 파일입니다. POST 성공 시 자동 삭제되므로 정상 종료 후에는 남아있지 않아야 합니다. 만약 이전 실행이 중간에 실패해 파일이 남아있다면, 이번 실행의 4-1단계가 최신 값으로 덮어쓰므로 문제 없습니다.

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>교육 프로젝트 진행 현황</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.3.0/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <script>
@@ -279,6 +280,13 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .edu-card-progress-fill { height: 100%; background: var(--color-status-done); border-radius: 999px; }
 .edu-card-progress-num { font-size: 11px; color: var(--text-tertiary); flex-shrink: 0; }
 .edu-card-archived-badge { align-self: flex-start; font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: var(--bg-tertiary); color: var(--text-tertiary); display: inline-flex; align-items: center; gap: 4px; }
+.edu-card-stage { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--color-status-progress); }
+.edu-card-stage.stage-complete { color: var(--color-status-done); }
+.edu-card-stage span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edu-card-stage-dots { display: flex; gap: 4px; flex-wrap: wrap; }
+.stage-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bg-tertiary); border: 1px solid var(--border-tertiary); flex-shrink: 0; }
+.stage-dot-1 { background: var(--color-status-progress); border-color: var(--color-status-progress); }
+.stage-dot-2 { background: var(--color-status-done); border-color: var(--color-status-done); }
 .flash-highlight { animation: flash-highlight-anim 1.4s ease; }
 @keyframes flash-highlight-anim { 0%, 15% { box-shadow: 0 0 0 3px var(--color-status-progress) inset; } 100% { box-shadow: none; } }
 
@@ -1213,6 +1221,14 @@ function renderCardView() {
     const dates = (s && s.dates) || [];
     const dateLabel = dates.length ? (dates.length > 1 ? `${dates[0]} 외 ${dates.length - 1}건` : dates[0]) : '일정 미정';
     const staffLabel = s ? [s.instructorName, s.tutorName].filter(Boolean).join(' · ') : '';
+    const stageIdx = state.tasks.findIndex(t => ((c.status && c.status[t.id]) || 0) !== 2);
+    const stageComplete = stageIdx === -1;
+    const stageLabel = stageComplete ? '모든 업무 완료' : state.tasks[stageIdx].label;
+    const stageStepLabel = stageComplete ? `${state.tasks.length}/${state.tasks.length}` : `${stageIdx + 1}/${state.tasks.length}`;
+    const stageDots = state.tasks.map(t => {
+      const st = (c.status && c.status[t.id]) || 0;
+      return `<span class="stage-dot stage-dot-${st}" title="${escAttr(t.label)}"></span>`;
+    }).join('');
     return `<div class="edu-card" onclick="jumpToCompany(${c.id})" title="클릭하면 해당 교육으로 이동합니다">
       <div class="edu-card-header">
         <div>
@@ -1224,6 +1240,11 @@ function renderCardView() {
       ${c.location ? `<div class="edu-card-meta"><i class="ti ti-map-pin"></i><span>${escHtml(c.location)}</span></div>` : ''}
       <div class="edu-card-meta"><i class="ti ti-calendar-event"></i><span>${dateLabel}</span></div>
       <div class="edu-card-meta"><i class="ti ti-user"></i><span>${staffLabel ? escHtml(staffLabel) : '강사·튜터 미배정'}</span></div>
+      <div class="edu-card-stage ${stageComplete ? 'stage-complete' : ''}">
+        <i class="ti ${stageComplete ? 'ti-circle-check' : 'ti-flag'}"></i>
+        <span title="${escAttr(stageLabel)}">${stageStepLabel}단계 · ${escHtml(stageLabel)}</span>
+      </div>
+      <div class="edu-card-stage-dots">${stageDots}</div>
       <div class="edu-card-progress">
         <div class="edu-card-progress-bar"><div class="edu-card-progress-fill" style="width:${pct}%;"></div></div>
         <span class="edu-card-progress-num">${pct}%</span>
