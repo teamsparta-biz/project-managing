@@ -315,9 +315,11 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .modal-actions button.primary:disabled { opacity: 0.4; cursor: default; }
 
 .owner-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.owner-chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-family: var(--font-sans); border: 1px solid var(--border-secondary); border-radius: 999px; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; transition: all 0.15s; }
+.owner-chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px 8px 14px; font-size: 13px; font-family: var(--font-sans); border: 1px solid var(--border-secondary); border-radius: 999px; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; transition: all 0.15s; }
 .owner-chip:hover { border-color: var(--color-section-before); color: var(--color-section-before); background: color-mix(in srgb, var(--color-section-before) 8%, transparent); }
 .owner-chip.active { border-color: var(--color-section-before); color: var(--color-section-before); background: color-mix(in srgb, var(--color-section-before) 12%, transparent); font-weight: 500; }
+.owner-chip-delete { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; color: var(--text-tertiary); }
+.owner-chip-delete:hover { background: color-mix(in srgb, red 15%, transparent); color: red; }
 .owner-add-row { margin-bottom: 8px; }
 .owner-add-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 12px; font-family: var(--font-sans); border: 1px dashed var(--border-secondary); border-radius: var(--radius-md); background: transparent; color: var(--text-tertiary); cursor: pointer; }
 .owner-add-btn:hover { color: var(--text-primary); border-color: var(--border-primary); }
@@ -536,6 +538,13 @@ function addOwner(name) {
   const list = getOwners();
   if (!list.includes(trimmed)) { list.push(trimmed); saveOwners(list); }
 }
+function removeOwner(name) {
+  const list = getOwners().filter(n => n !== name);
+  saveOwners(list);
+  if (getCurrentOwner() === name) {
+    try { localStorage.removeItem('training_owner'); } catch(e) {}
+  }
+}
 
 function openUserSelectorModal(onDone) {
   const root = document.getElementById('modal-root');
@@ -552,6 +561,7 @@ function openUserSelectorModal(onDone) {
             ${owners.map(n => `
               <button class="owner-chip${n === current ? ' active' : ''}" data-name="${escAttr(n)}">
                 <i class="ti ti-user" style="font-size:13px;"></i>${escHtml(n)}
+                <span class="owner-chip-delete" data-remove-name="${escAttr(n)}" title="삭제"><i class="ti ti-x" style="font-size:11px;"></i></span>
               </button>`).join('')}
           </div>` : `<p style="font-size:13px; color:var(--text-tertiary); margin-bottom:12px;">등록된 이름이 없습니다.</p>`}
           <div class="owner-add-row" id="owner-add-row">
@@ -566,12 +576,23 @@ function openUserSelectorModal(onDone) {
       </div>`;
 
     root.querySelectorAll('.owner-chip').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        if (e.target.closest('.owner-chip-delete')) return;
         root.querySelectorAll('.owner-chip').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         setCurrentOwner(btn.dataset.name);
         const confirmBtn = document.getElementById('owner-confirm-btn');
         if (confirmBtn) confirmBtn.disabled = false;
+      });
+    });
+
+    root.querySelectorAll('.owner-chip-delete').forEach(delBtn => {
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const name = delBtn.dataset.removeName;
+        if (!confirm(`'${name}' 님을 목록에서 삭제할까요?`)) return;
+        removeOwner(name);
+        renderModal();
       });
     });
 
