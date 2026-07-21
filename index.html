@@ -1108,6 +1108,7 @@ function renderBody() {
               <button class="archive-btn" onclick="openEduOperationShare(${c.id})" title="교육운영채널에 교육 공유"><i class="ti ti-speakerphone"></i>교육운영내용</button>
               <button class="archive-btn" onclick="openTutorInfoShare(${c.id})" title="남은 교육 일자의 강사·튜터 연락처/차량번호 조회"><i class="ti ti-car"></i>튜터정보전달</button>
               <button class="archive-btn" onclick="openLectureShare(${c.id})" title="노션 교안 초대용 강사·기술튜터 이메일 목록 조회"><i class="ti ti-file-text"></i>노션 강사 초대</button>
+              <button class="archive-btn" onclick="openPadletShare(${c.id})" title="패들렛 초대용 강사·기술튜터 이메일 목록 조회"><i class="ti ti-layout-grid"></i>패들렛 초대</button>
               <button class="archive-btn" onclick="openTaxInvoiceInquiry(${c.id})" title="세금계산서 발행 문의 메일 초안 작성"><i class="ti ti-receipt-tax"></i>세금계산서발행</button>
               <button class="archive-btn" onclick="openSatisfactionShare(${c.id})" title="만족도조사 결과를 고객사 담당자·담당 주강사에게 전달"><i class="ti ti-mood-smile"></i>만족도결과전달</button>
             </div>
@@ -1804,6 +1805,20 @@ function openLectureShare(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
   const parts = ['/lecture-share'];
+  if (c.name) parts.push(`기업명:${c.name}`);
+  if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
+  const cmd = parts.join(' ');
+  navigator.clipboard.writeText(cmd).then(() => {
+    showCopyToast(cmd);
+  }).catch(() => {
+    prompt('아래 명령어를 복사해서 Claude Code에 붙여넣으세요:', cmd);
+  });
+}
+
+function openPadletShare(companyId) {
+  const c = state.companies.find(c => c.id === companyId);
+  if (!c) return;
+  const parts = ['/padlet-share'];
   if (c.name) parts.push(`기업명:${c.name}`);
   if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
   const cmd = parts.join(' ');
