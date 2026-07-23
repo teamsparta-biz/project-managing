@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>[고객사] 과정명 결과보고서</title>
+<!--
+  ========================================================================
+  팀스파르타 AX교육팀 결과보고서 템플릿 (A4 · 레드 테마)
+  - {{...}} 자리표시자를 실제 값으로 치환해 사용
+  - 확정되지 않은 값은 행 자체를 삭제 (placeholder를 남기지 말 것)
+  - Chrome 헤드리스로 PDF 변환:
+    chrome --headless --disable-gpu --no-pdf-header-footer \
+      --print-to-pdf="OUT.pdf" "IN.html"
+  ========================================================================
+-->
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{ --red:#E43315; --red-soft:#fbe9e6; --dark:#33373d; --ink:#222; --muted:#888; --line:#e6e6e6; }
+  body{ font-family:"Malgun Gothic","맑은 고딕",sans-serif; color:var(--ink); -webkit-print-color-adjust:exact; print-color-adjust:exact; font-size:13px; line-height:1.6; }
+  .page{ width:210mm; min-height:297mm; padding:15mm 16mm; position:relative; page-break-after:always; }
+  .page:last-child{ page-break-after:auto; }
+
+  .sec-head{ display:flex; align-items:baseline; gap:10px; border-bottom:3px solid var(--red); padding-bottom:9px; margin-bottom:18px; }
+  .sec-num{ color:var(--red); font-size:26px; font-weight:800; }
+  .sec-title{ font-size:23px; font-weight:800; color:#111; }
+  .sub{ display:flex; align-items:center; gap:8px; font-size:16px; font-weight:800; margin:18px 0 10px; }
+  .sub::before{ content:""; width:6px; height:18px; background:var(--red); border-radius:1px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:6px; }
+  .info th{ background:#f5f5f5; color:#333; font-weight:700; width:130px; text-align:center; padding:9px 10px; border:1px solid var(--line); white-space:nowrap; }
+  .info td{ padding:9px 14px; border:1px solid var(--line); }
+  .grid th{ background:var(--red); color:#fff; font-weight:700; padding:9px 8px; border:1px solid #d62d10; text-align:center; }
+  .grid td{ padding:8px 10px; border:1px solid var(--line); text-align:center; }
+  .grid td.l{ text-align:left; }
+  .grid tr:nth-child(even) td{ background:#fafafa; }
+  .hl td{ background:var(--red-soft)!important; font-weight:800; }
+
+  ul.clean{ list-style:none; }
+  ul.clean li{ position:relative; padding:3px 0 3px 14px; line-height:1.6; }
+  ul.clean li::before{ content:"·"; position:absolute; left:0; color:var(--red); font-weight:800; }
+  .note{ color:var(--muted); font-size:11px; margin-top:6px; }
+
+  /* 가로 막대 차트 (라벨은 한 줄 고정 — 두 줄로 깨지지 않게 width 충분히) */
+  .chart{ margin:10px 0 6px; }
+  .bar-row{ display:flex; align-items:center; gap:10px; margin:6px 0; font-size:12.5px; }
+  .bar-row .lbl{ width:210px; text-align:right; color:#333; white-space:nowrap; }
+  .bar-row .track{ flex:1; background:#f0f0f0; border-radius:3px; height:18px; }
+  .bar-row .fill{ display:block; background:var(--red); height:100%; border-radius:3px; }
+  .bar-row .fill.g{ background:#c9ccd1; }
+  .bar-row .val{ width:54px; font-weight:800; color:var(--red); }
+
+  /* 정성 평가 2단 카드 */
+  .qual{ display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; margin-top:6px; }
+  .col-head{ color:#fff; font-weight:800; text-align:center; padding:9px; font-size:13.5px; border-radius:4px 4px 0 0; }
+  .pos .col-head{ background:var(--red); } .imp .col-head{ background:var(--dark); }
+  .qcard{ border:1px solid var(--line); border-top:none; padding:10px 12px; font-size:12px; line-height:1.55; }
+
+  .prop{ background:#f6f6f6; border-radius:6px; padding:11px 15px; margin:9px 0; }
+  .prop .t{ font-weight:800; font-size:13px; margin-bottom:3px; }
+  .prop .d{ font-size:12px; line-height:1.55; color:#333; }
+  .concl{ background:var(--red-soft); border-left:5px solid var(--red); border-radius:0 6px 6px 0; padding:14px 18px; font-size:12.5px; line-height:1.8; margin:8px 0; }
+
+  /* 표지 */
+  .cover{ padding:0; }
+  .cover .topbar{ height:9mm; background:linear-gradient(90deg,var(--red) 0%, #f5a99b 60%, #fde7e2 100%); }
+  .cover .body{ padding:30mm 20mm 0; }
+  .badge{ display:flex; align-items:center; gap:12px; }
+  .badge .s{ color:var(--red); font-size:34px; font-weight:900; }
+  .badge .b{ background:var(--red-soft); color:var(--red); font-size:14px; padding:6px 16px; border-radius:22px; font-weight:800; }
+  .cover h1{ font-size:44px; line-height:1.3; margin-top:40px; color:#111; font-weight:900; letter-spacing:-0.5px; }
+  .cover .subtitle{ font-size:18px; color:#555; margin-top:18px; font-weight:700; }
+  .cover-foot{ position:absolute; bottom:26mm; left:20mm; right:20mm; display:flex; border-top:1px solid var(--line); padding-top:16px; }
+  .cover-foot .blk{ flex:1; padding-left:16px; border-left:1px solid var(--line); }
+  .cover-foot .blk:first-child{ border-left:none; padding-left:0; }
+  .cover-foot .k{ color:var(--muted); font-size:12px; font-weight:700; }
+  .cover-foot .v{ font-size:14px; font-weight:800; margin-top:6px; color:#111; }
+</style>
+</head>
+<body>
+
+<!-- ===== 표지 ===== -->
+<section class="page cover">
+  <div class="topbar"></div>
+  <div class="body">
+    <div class="badge"><span class="s">TEAMSPARTA</span><span class="b">AX 교육팀</span></div>
+    <h1>[{{고객사}}]<br>{{과정명}}<br>결과보고서</h1>
+    <div class="subtitle">{{부제 — 과정 한 줄 설명}}</div>
+  </div>
+  <div class="cover-foot">
+    <div class="blk"><div class="k">교육 기간</div><div class="v">{{기간}}</div></div>
+    <div class="blk"><div class="k">담당 매니저</div><div class="v">{{담당자 / 연락처}}</div></div>
+    <div class="blk"><div class="k">CONTACT</div><div class="v">{{이메일}}</div></div>
+  </div>
+</section>
+
+<!-- ===== I. 교육과정 개요 ===== -->
+<section class="page">
+  <div class="sec-head"><span class="sec-num">I.</span><span class="sec-title">교육과정 개요</span></div>
+  <table class="info">
+    <tr><th>과정명</th><td>{{과정명}}</td></tr>
+    <tr><th>교육 목적</th><td>{{목적}}</td></tr>
+    <tr><th>교육 일정</th><td>{{일정}}</td></tr>
+    <tr><th>교육 시간</th><td>{{시간}}</td></tr>
+    <tr><th>교육 대상</th><td>{{대상}}</td></tr>
+    <tr><th>사용 도구</th><td>{{도구}}</td></tr>
+    <!-- 확정 안 된 행(강사 등)은 삭제. placeholder 남기지 말 것 -->
+  </table>
+  <div class="sub">학습 목표</div>
+  <table class="grid">
+    <tr><th style="width:50px">#</th><th>학습 목표</th></tr>
+    <tr><td>1</td><td class="l">{{목표1}}</td></tr>
+  </table>
+  <div class="sub">세부 커리큘럼</div>
+  <table class="grid">
+    <tr><th style="width:70px">일차</th><th style="width:180px">주제</th><th>주요 내용</th></tr>
+    <tr><td>{{일차}}</td><td>{{주제}}</td><td class="l">{{내용}}</td></tr>
+  </table>
+</section>
+
+<!-- ===== II. 교육 결과물 + III. 만족도 ===== -->
+<section class="page">
+  <div class="sec-head"><span class="sec-num">II.</span><span class="sec-title">교육 결과물</span></div>
+  <table class="info">
+    <tr><th>교육 교안</th><td>{{교안 링크}}</td></tr>
+    <tr><th>실습 자료</th><td>{{실습 자료}}</td></tr>
+    <tr><th>최종 발표</th><td>{{발표}}</td></tr>
+    <tr><th>최종 튜터 피드백</th><td>{{튜터 피드백 링크}}</td></tr><!-- 있을 때만 -->
+  </table>
+
+  <div class="sec-head" style="margin-top:26px"><span class="sec-num">III.</span><span class="sec-title">교육 만족도 조사 결과</span></div>
+  <p class="note">{{응답 수·척도 설명}}</p>
+  <div class="sub">정량 평가 (5점 척도)</div>
+  <div class="chart">
+    <div class="bar-row"><span class="lbl">{{항목}}</span><span class="track"><span class="fill" style="width:{{pct}}%"></span></span><span class="val">{{점수}}</span></div>
+  </div>
+  <p class="note">만족도 종합 <b>{{종합}} / 5.0</b></p>
+  <div class="sub">동료 추천 의향 (NPS, 0~10점)</div>
+  <table class="grid">
+    <tr><th>지표</th><th style="width:90px">인원</th><th style="width:90px">비율</th></tr>
+    <tr><td class="l">Promoters (9~10점)</td><td>{{n}}</td><td>{{%}}</td></tr>
+    <tr><td class="l">Passives (7~8점)</td><td>{{n}}</td><td>{{%}}</td></tr>
+    <tr><td class="l">Detractors (0~6점)</td><td>{{n}}</td><td>{{%}}</td></tr>
+    <tr class="hl"><td class="l">평균 {{avg}} / 10 → NPS Score</td><td colspan="2"><b>{{nps}}</b></td></tr>
+  </table>
+</section>
+
+<!-- ===== III 정성 (가장 만족/개선 표 + 피드백 카드) ===== -->
+<section class="page">
+  <div class="sec-head"><span class="sec-num">III.</span><span class="sec-title">교육 만족도 조사 결과 (정성)</span></div>
+  <div class="sub">가장 만족한 점 / 개선 요청 (복수 선택)</div>
+  <table class="grid">
+    <tr><th>가장 만족한 점</th><th style="width:60px">응답</th><th>개선 요청 사항</th><th style="width:60px">응답</th></tr>
+    <tr><td class="l">{{항목}}</td><td>{{n}}</td><td class="l">{{항목}}</td><td>{{n}}</td></tr>
+  </table>
+  <div class="sub">수강생 정성 피드백</div>
+  <div class="qual">
+    <div class="pos"><div class="col-head">긍정 피드백</div>
+      <div class="qcard">"{{인용}}"</div>
+    </div>
+    <div class="imp"><div class="col-head">개선 요청</div>
+      <div class="qcard">"{{인용}}"</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== IV. 사전 설문 분석 (사후 역량 데이터 있으면 사전/사후 비교표로 대체) ===== -->
+<section class="page">
+  <div class="sec-head"><span class="sec-num">IV.</span><span class="sec-title">사전 설문 기반 수강생 역량·니즈 분석</span></div>
+  <p class="note">{{사전 설문 응답 수·설명}}</p>
+  <div class="sub">{{분포 항목}}</div>
+  <div class="chart">
+    <div class="bar-row"><span class="lbl">{{보기}}</span><span class="track"><span class="fill" style="width:{{pct}}%"></span></span><span class="val">{{%}}</span></div>
+  </div>
+</section>
+
+<!-- ===== V. 회고 + VI. 결론 ===== -->
+<section class="page">
+  <div class="sec-head"><span class="sec-num">V.</span><span class="sec-title">과정 회고 및 성과 요약</span></div>
+  <table class="grid">
+    <tr><th>지표</th><th>결과</th></tr>
+    <tr><td class="l">{{지표}}</td><td><b>{{값}}</b></td></tr>
+  </table>
+  <div class="sub">핵심 인사이트</div>
+  <ul class="clean"><li><b>{{제목}}</b> — {{설명}}</li></ul>
+  <div class="sub">교육 차별점</div>
+  <ul class="clean"><li>{{차별점}}</li></ul>
+
+  <div class="sec-head" style="margin-top:24px"><span class="sec-num">VI.</span><span class="sec-title">종합 결론</span></div>
+  <div class="concl">{{결론 문단}}</div>
+  <!-- 후속 교육 제안·슬로건·작성 주체 문구는 기본 미포함. 요청 시에만 추가 -->
+</section>
+
+</body>
+</html>

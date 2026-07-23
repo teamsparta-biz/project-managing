@@ -1060,6 +1060,11 @@ function renderBody() {
           <input type="text" class="meta-text-input" value="${escAttr(c.location || '')}" onchange="updateField(${c.id}, 'location', this.value)" placeholder="장소" />
         </div>
         <div class="meta-row">
+          <i class="ti ti-user"></i>
+          <input type="text" class="meta-text-input" style="flex: 1 1 55%;" value="${escAttr(c.contactName || '')}" onchange="updateField(${c.id}, 'contactName', this.value)" placeholder="담당자 성함" />
+          <input type="text" class="meta-text-input" style="flex: 1 1 45%;" value="${escAttr(c.contactPosition || '')}" onchange="updateField(${c.id}, 'contactPosition', this.value)" placeholder="직책" />
+        </div>
+        <div class="meta-row">
           <i class="ti ti-mail"></i>
           <input type="email" class="meta-text-input" value="${escAttr(c.contactEmail || '')}" onchange="updateField(${c.id}, 'contactEmail', this.value)" placeholder="담당자 이메일" />
         </div>
@@ -1213,7 +1218,7 @@ function render() {
 function renderCardView() {
   const grid = document.getElementById('card-view');
   if (!grid) return;
-  const list = state.companies.slice().sort((a, b) => {
+  const list = state.companies.filter(c => !c.archived).sort((a, b) => {
     const getEarliestDate = c => {
       const dates = (c.sessions || []).flatMap(s => s.dates || []).filter(Boolean);
       if (dates.length) return dates.sort()[0];
@@ -1271,7 +1276,6 @@ function renderCardView() {
         <div class="edu-card-progress-bar"><div class="edu-card-progress-fill" style="width:${pct}%;"></div></div>
         <span class="edu-card-progress-num">${pct}%</span>
       </div>
-      ${c.archived ? `<span class="edu-card-archived-badge"><i class="ti ti-archive"></i>교육 완료</span>` : ''}
     </div>`;
   }).join('');
 }
@@ -1792,6 +1796,8 @@ function openTaxInvoiceInquiry(companyId) {
   if (!c) return;
   const parts = ['/tax-invoice-inquiry'];
   if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
+  if (c.contactName) parts.push(`담당자성함:${c.contactName}`);
+  if (c.contactPosition) parts.push(`담당자직책:${c.contactPosition}`);
   if (c.contactEmail) parts.push(`담당자이메일:${c.contactEmail}`);
   const cmd = parts.join(' ');
   navigator.clipboard.writeText(cmd).then(() => {
@@ -1967,6 +1973,8 @@ function openEmailDraft(companyId) {
   const start = fmtDate(c.startAt), end = fmtDate(c.endAt);
   if (start || end) parts.push(`교육일자: ${start}${start && end ? ' ~ ' : ''}${end}`);
   if (c.location) parts.push(`장소: ${c.location}`);
+  if (c.contactName) parts.push(`담당자성함: ${c.contactName}`);
+  if (c.contactPosition) parts.push(`담당자직책: ${c.contactPosition}`);
   if (c.contactEmail) parts.push(`담당자이메일: ${c.contactEmail}`);
 
   const cmd = parts.join(' / ');
