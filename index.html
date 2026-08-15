@@ -1105,6 +1105,7 @@ function renderBody() {
             </div>
             <div class="action-btn-row">
               <button class="archive-btn" onclick="openEmailDraft(${c.id})" title="이메일 초안 작성"><i class="ti ti-mail"></i>이메일 초안</button>
+              <button class="archive-btn" onclick="openLectureDraftSend(${c.id})" title="고객사에 교안 초안 링크 송부 메일 작성"><i class="ti ti-file-text"></i>교안송부</button>
               <button class="archive-btn" onclick="openInstructorRecruitment(${c.id})" title="주강사 구인 글 복사"><i class="ti ti-user-star"></i>주강사 구인</button>
               <button class="archive-btn" onclick="openTutorRecruitment(${c.id})" title="기술튜터 구인 글 복사"><i class="ti ti-users"></i>기술튜터 구인</button>
               <button class="archive-btn" onclick="openUrgentTechTutorRecruit(${c.id})" title="가용 기술튜터 확인 후 선별 인원에게 개별 Slack DM 발송"><i class="ti ti-user-exclamation"></i>기술튜터 긴급구인</button>
@@ -1142,7 +1143,7 @@ function renderSummary() {
   const archivedCount = state.companies.filter(c => c.archived).length;
   document.getElementById('count-active').textContent = activeCount;
   document.getElementById('count-archived').textContent = archivedCount;
-  document.getElementById('count-overview').textContent = state.companies.length;
+  document.getElementById('count-overview').textContent = state.companies.filter(c => !c.archived && c.trainingStatus !== '교육종료').length;
   const visibleCompanies = currentTab === 'overview' ? state.companies : state.companies.filter(c => currentTab === 'active' ? !c.archived : c.archived);
   const taskCount = state.tasks.length;
   let totalDone = 0, totalAll = 0;
@@ -1218,7 +1219,7 @@ function render() {
 function renderCardView() {
   const grid = document.getElementById('card-view');
   if (!grid) return;
-  const list = state.companies.filter(c => !c.archived).sort((a, b) => {
+  const list = state.companies.filter(c => !c.archived && c.trainingStatus !== '교육종료').sort((a, b) => {
     const getEarliestDate = c => {
       const dates = (c.sessions || []).flatMap(s => s.dates || []).filter(Boolean);
       if (dates.length) return dates.sort()[0];
@@ -1978,6 +1979,23 @@ function openEmailDraft(companyId) {
   if (c.contactEmail) parts.push(`담당자이메일: ${c.contactEmail}`);
 
   const cmd = parts.join(' / ');
+  navigator.clipboard.writeText(cmd).then(() => {
+    showCopyToast(cmd);
+  }).catch(() => {
+    prompt('아래 명령어를 복사해서 Claude Code에 붙여넣으세요:', cmd);
+  });
+}
+
+function openLectureDraftSend(companyId) {
+  const c = state.companies.find(c => c.id === companyId);
+  if (!c) return;
+  const parts = ['/lecture-draft-send'];
+  if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
+  if (c.workbookUrl) parts.push(`교안링크:${c.workbookUrl}`);
+  if (c.contactName) parts.push(`수신자이름:${c.contactName}`);
+  if (c.contactPosition) parts.push(`수신자직함:${c.contactPosition}`);
+  if (c.contactEmail) parts.push(`담당자이메일:${c.contactEmail}`);
+  const cmd = parts.join(' ');
   navigator.clipboard.writeText(cmd).then(() => {
     showCopyToast(cmd);
   }).catch(() => {

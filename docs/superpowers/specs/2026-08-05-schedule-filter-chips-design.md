@@ -80,16 +80,42 @@
 
 ## 구현 구조
 
-수정 대상은 `index.html` 한 파일이다.
+### 날짜 로직 분리
 
-### 추가
+버그가 날 지점은 날짜 경계 계산(주 시작 월요일 보정, 월말, 다음주가 달·해를 넘어가는 경우)이다.
+이 로직이 123KB `index.html` 안에 인라인으로 들어가면 자동 테스트가 불가능하므로,
+순수 함수만 별도 파일로 분리한다. UI는 계속 `index.html`에 둔다.
+
+```
+date-filter.js            ← 순수 함수 (약 60행). 브라우저·Node 양쪽에서 로드
+test/date-filter.test.js  ← node:test 기반 테스트 (새 의존성 0개)
+index.html                ← 칩 UI + 목록 통합
+package.json              ← "test": "node --test test/"
+```
+
+`date-filter.js`는 UMD 형태로 브라우저에서는 `window.DateFilter`, Node에서는
+`module.exports`로 노출한다. `server.js`의 MIME 표에 이미 `.js`가 있고 Vercel도
+정적 파일을 그대로 서빙하므로 배포 설정 변경은 필요 없다.
+
+날짜 비교는 `Date` 객체가 아니라 `'YYYY-MM-DD'` 문자열 키로 한다.
+`sessions[].dates`는 `'2026-08-10'`, `startAt`은 `'2026-06-17T09:00'` 형태라
+앞 10자를 잘라내면 두 형식이 같은 키가 되고, 시간대 문제도 발생하지 않는다.
+
+### date-filter.js 함수
+
+- `toDateKey(value)` — `'YYYY-MM-DD'` 또는 `'YYYY-MM-DDTHH:mm'` → `'YYYY-MM-DD'`, 그 외 `null`
+- `getCompanyDates(company)` — 회차 날짜를 펼쳐 유효한 날짜 키 배열 반환 (`startAt` 폴백 포함)
+- `getFilterRange(filter, today)` — 필터의 양끝 포함 구간 `{start, end}`. `all`·`noDate`는 `null`
+- `matchesDateFilter(company, filter, today)` — 위 판정 규칙
+
+### index.html 변경
 
 - 탭 바 마크업(425~429행 근처)에 칩 5개
-- 모듈 변수 `currentDateFilter`— `'all' | 'thisWeek' | 'nextWeek' | 'thisMonth' | 'noDate'`, 초기값 `'all'`
-- `getCompanyDates(company)` — 회차 날짜를 펼쳐 유효한 날짜 배열 반환 (`startAt` 폴백 포함)
-- `matchesDateFilter(company, filter)` — 순수 함수. 위 판정 규칙 하나만 담당
+- `<script src="date-filter.js"></script>` 추가 (9행 인라인 스크립트보다 앞)
+- 모듈 변수 `currentDateFilter` — `'all' | 'thisWeek' | 'nextWeek' | 'thisMonth' | 'noDate'`, 초기값 `'all'`
+- `setDateFilter(filter)` — 상태 갱신 후 재렌더. 활성 칩 재클릭 시 `'all'`로 복귀
 - `getVisibleCompanies(tab, filter)` — 탭 조건 + 날짜 필터 + 날짜 오름차순 정렬을 거친 목록 반환
-- `setDateFilter(filter)` — 상태 갱신 후 재렌더
+- `renderDateChips()` — 칩 활성 상태와 숫자 갱신. `render()`에서 호출
 
 ### 정리
 
@@ -99,20 +125,45 @@
 
 `renderSummary`(1146행)의 탭별 집합 계산도 같은 함수를 사용한다.
 
+### 함께 고치는 기존 버그
+
+`renderSummary`는 `overview` 탭에서 `state.companies` 전체(보관 처리된 기업 포함)를 세는데,
+같은 탭의 카드 목록(`renderCardView`)과 탭 숫자(`count-overview`)는
+`!archived && trainingStatus !== '교육종료'`를 쓴다. 그래서 전체보기 탭에서
+요약줄의 "전체 N개"와 실제 표시되는 카드 수가 어긋난다.
+
+`getVisibleCompanies`로 통합하면서 카드 목록·탭 숫자 쪽 정의로 맞춘다.
+전체보기 탭의 요약 개수와 평균 진행률 값이 달라지는데, 이는 화면에 보이는 것과
+일치시키는 의도된 수정이다.
+
 ### 경계
 
 - Supabase 데이터 구조, `state.json` 스키마, `server.js`, 스킬 20개는 수정하지 않는다.
 - 순수 화면단 필터이므로 저장되는 데이터가 없다.
+- 새 npm 의존성을 추가하지 않는다 (`node:test`는 Node 내장).
 
 ## 검증
 
-수동 확인 항목:
+### 자동 (`npm test`)
+
+`date-filter.js`의 순수 함수에 대해:
+
+1. `toDateKey`가 날짜·ISO 일시·빈값·잘못된 문자열을 각각 올바르게 처리한다
+2. `getCompanyDates`가 여러 회차를 펼치고, 회차 날짜가 없으면 `startAt`으로 폴백한다
+3. `thisWeek` 구간이 주 중간·월요일·일요일 어느 날을 기준으로 해도 같은 월~일이 나온다
+4. `nextWeek`가 달 경계를 넘는다 (2026-08-31 월요일 → 08-31 ~ 09-06)
+5. `nextWeek`가 해 경계를 넘는다 (2026-12-28 월요일 → 12-28 ~ 2027-01-03)
+6. `thisMonth`가 평년·윤년 2월 말일을 맞게 계산한다
+7. 뒷회차만 이번주인 기업이 `thisWeek`에 잡힌다
+8. 날짜가 전혀 없는 기업만 `noDate`에 잡힌다
+9. `all`은 모든 기업을 통과시킨다
+
+### 수동
 
 1. 칩 미선택(`전체`) 상태에서 기존과 동일한 목록·정렬이 나온다
-2. 회차가 여러 개인 기업에서 뒷회차만 이번주일 때 `이번주`에 잡힌다
-3. 날짜가 전혀 없는 기업이 `일정미입력`에만 잡힌다
-4. 칩 숫자와 필터 적용 후 실제 행 수가 일치한다 (세 탭 각각)
-5. 탭 전환 시 칩 선택이 유지되고 숫자가 재계산된다
-6. 새로고침하면 `전체`로 돌아간다
-7. 결과 0건일 때 "조건에 맞는 교육이 없습니다"가 나온다
-8. 전체보기 카드 뷰에도 같은 필터가 걸린다
+2. 칩 숫자와 필터 적용 후 실제 행 수가 일치한다 (세 탭 각각)
+3. 탭 전환 시 칩 선택이 유지되고 숫자가 재계산된다
+4. 활성 칩을 다시 누르면 `전체`로 돌아간다
+5. 새로고침하면 `전체`로 돌아간다
+6. 결과 0건일 때 "조건에 맞는 교육이 없습니다"가 나온다
+7. 전체보기 카드 뷰에도 같은 필터가 걸린다

@@ -5,6 +5,7 @@ data/
 desktop.ini
 *.bat
 *.ps1
+*.cmd
 sync-owners.txt
 sync-daily.log
 .vscode/
@@ -12,4 +13,14 @@ sync-daily.log
 
 .vercel
 .env*
-generated_docs/
+*.xlsx
+
+# 산출물: 고객사 결과보고서·견적서·인건비·문서 등 실명·금액이 들어간 파일
+# (2026-08-04 generated_docs/ 를 산출물/문서/ 로 옮겨 이 규칙에 포함시켰다)
+산출물/
+
+# 로컬 설치 도구 — 빌드 산출물(dist/ClaudeSetup.exe)까지 들어 있어 저장소에 두지 않는다
+installer/
+
+__pycache__/
+*.pyc
