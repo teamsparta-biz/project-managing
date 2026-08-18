@@ -69,7 +69,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 | V. 과정 회고·성과 요약 | 성과표 + 핵심 인사이트 + 차별점 |
 | VI. 종합 결론 | 결론 문단 |
 
-- **MD 먼저 작성** → 같은 내용으로 **HTML** 작성. HTML은 [template.html](template.html)의 CSS·구조를 사용.
+- **MD 먼저 작성** → 같은 내용으로 **HTML** 작성. HTML은 이 스킬 폴더의 [template.html](template.html)(`.claude/skills/make-report/template.html`)의 CSS·구조를 사용. 템플릿은 읽기 전용 — 복사해서 쓰고 원본은 수정하지 않는다.
 - 차트 막대 라벨은 한 줄로 유지(`white-space:nowrap`, 라벨 width 충분히). 두 줄로 깨지면 라벨을 줄이거나 width를 늘린다.
 - 후속 교육 제안·슬로건("팀스파르타가 함께…")·작성 주체 문구는 **기본 미포함**. 사용자가 요청할 때만 추가.
 

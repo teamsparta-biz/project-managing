@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ax-hub": {
+      "type": "http",
+      "url": "https://web-production-1b3e5.up.railway.app/mcp"
+    }
+  }
+}

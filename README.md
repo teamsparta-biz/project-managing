@@ -132,7 +132,7 @@ Claude Code 연동이 끝나면, 앱의 각 버튼을 클릭했을 때 해당 �
 | `email-draft` | 이메일 초안 | 교육 시작 전 안내 메일 초안 작성 → Gmail 임시보관함 저장 |
 | `lecture-draft-send` | 교안송부 | 교안 초안 링크 송부 메일 작성 |
 | `tax-invoice-inquiry` | 세금계산서발행 | 세금계산서 발행 확인 메일 작성 |
-| `tutor_onboarding` | SlackDM방 개설 | 강사·튜터 슬랙 단톡방 생성 및 안내 메시지 전송 |
+| `tutor-onboarding` | SlackDM방 개설 | 강사·튜터 슬랙 단톡방 생성 및 안내 메시지 전송 |
 | `ax-edu-slack-share` | 교육운영내용 | 교육 정보를 Slack 채널에 공유 |
 | `recruit-share` | - | 주강사/기술튜터 구인 글 슬랙 전송 |
 | `notion-share` | - | 노션 페이지 공유 인원 추가 |
