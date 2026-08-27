@@ -1807,6 +1807,7 @@ function openTaxInvoiceInquiry(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
   const parts = ['/tax-invoice-inquiry'];
+  if (c.name) parts.push(`기업명:${c.name}`);
   if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
   if (c.contactName) parts.push(`담당자성함:${c.contactName}`);
   if (c.contactPosition) parts.push(`담당자직책:${c.contactPosition}`);
