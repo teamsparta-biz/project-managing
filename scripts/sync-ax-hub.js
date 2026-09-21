@@ -7,7 +7,7 @@
  *
  * payload 파일 형식 (줄 단위, `|` 구분 — /sync-ax-hub 스킬의 단일 SQL이 생성):
  *   C|<course_id(full uuid)>|<기업명>|<교육명>|<status>|<장소>|<교안URL>|<담당자명>|<직책>|<이메일>|<초대이메일1,초대이메일2,...>
- *   S|<course_id 앞8자리>|<YYYY-MM-DD>|<start_time>|<end_time>|<강사,강사>|<튜터,튜터>
+ *   S|<course_id 앞8자리>|<YYYY-MM-DD>|<start_time>|<end_time>|<강사,강사>|<튜터,튜터>|<강사이름:이메일,...>|<튜터이름:이메일,...>
  *   A|<course_id 앞8자리>        ← 담당자 소유이지만 보관 대상(tax_invoice/closed/stopped)
  *
  * 절대 규칙: 사용자가 칸반보드에 입력한 업무 내용(status·memo·deadline·notes 계열)은
@@ -48,6 +48,14 @@ function loadEnv() {
   return env;
 }
 
+// "이름:이메일,이름:이메일" → 이메일만 추출 (이메일 없는 사람은 제외)
+function pairEmails(str) {
+  return (str || '').split(',').filter(Boolean).map(tok => {
+    const i = tok.indexOf(':');
+    return i === -1 ? '' : tok.slice(i + 1).trim();
+  }).filter(Boolean);
+}
+
 function hhmm(raw) {
   if (raw === '' || raw == null) return '';
   const n = Number(raw);
@@ -85,7 +93,10 @@ function parsePayload(text) {
     } else if (f[0] === 'S') {
       const key = f[1];
       if (!sessions.has(key)) sessions.set(key, []);
-      sessions.get(key).push({ date: f[2], st: f[3], et: f[4], ins: f[5] || '', tut: f[6] || '' });
+      sessions.get(key).push({
+        date: f[2], st: f[3], et: f[4], ins: f[5] || '', tut: f[6] || '',
+        insPairs: f[7] || '', tutPairs: f[8] || '',
+      });
     } else if (f[0] === 'A') {
       archivedOwned.add(f[1]);
     } else {
@@ -156,8 +167,10 @@ async function main() {
           endTime: hhmm(r.et),
           instructorName: r.ins.split(',').filter(Boolean).join(', '),
           tutorName: r.tut.split(',').filter(Boolean).join(', '),
+          instructorEmails: pairEmails(r.insPairs),
+          tutorEmails: pairEmails(r.tutPairs),
         }))
-      : [{ id: `session_${co.id}_1`, dates: [], startTime: '', endTime: '', instructorName: '', tutorName: '' }];
+      : [{ id: `session_${co.id}_1`, dates: [], startTime: '', endTime: '', instructorName: '', tutorName: '', instructorEmails: [], tutorEmails: [] }];
     co.name = meta.client;
     co.trainingName = meta.training;
     co.instructorName = allIns.join(', ');

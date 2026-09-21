@@ -76,6 +76,10 @@ WITH me AS (
     coalesce(string_agg(DISTINCT i.name, ',') FILTER (WHERE left(a.qualification_id::text,8) IN
       ('a7a605e9','888ee72c','07ecdab5','e39eeef7','ecdd7d85','7db139f7','2647f764')), '')||'|'||
     coalesce(string_agg(DISTINCT i.name, ',') FILTER (WHERE left(a.qualification_id::text,8) IN
+      ('30976fac','a0af4d4f','fc59bde4')), '')||'|'||
+    coalesce(string_agg(DISTINCT i.name||':'||coalesce(i.notion_email,i.email,''), ',') FILTER (WHERE left(a.qualification_id::text,8) IN
+      ('a7a605e9','888ee72c','07ecdab5','e39eeef7','ecdd7d85','7db139f7','2647f764')), '')||'|'||
+    coalesce(string_agg(DISTINCT i.name||':'||coalesce(i.notion_email,i.email,''), ',') FILTER (WHERE left(a.qualification_id::text,8) IN
       ('30976fac','a0af4d4f','fc59bde4')), '')
   FROM course_sessions cs
   JOIN course_rounds cr ON cs.round_id = cr.id
@@ -96,7 +100,7 @@ SELECT string_agg(line, E'\n' ORDER BY ord, line) AS payload FROM ln;
 | 줄 | 의미 |
 |---|---|
 | `C\|course_id(full)\|기업명\|교육명\|status\|장소\|교안URL\|담당자명\|직책\|이메일\|초대이메일목록` | 진행 대상 교육 (`setup`·`operation`). 마지막 필드는 그 교육에 배정된 강사·기술튜터 전원의 이메일(중복 제거, 쉼표 구분)이며 웹앱의 "노션 강사 초대" 버튼이 그대로 클립보드에 복사할 때 쓴다 |
-| `S\|course_id 앞8자리\|YYYY-MM-DD\|start\|end\|강사,강사\|튜터,튜터` | **일자 1개 = 세션 1개** (회차 아님) |
+| `S\|course_id 앞8자리\|YYYY-MM-DD\|start\|end\|강사,강사\|튜터,튜터\|강사이름:이메일,...\|튜터이름:이메일,...` | **일자 1개 = 세션 1개** (회차 아님). 마지막 2개 필드는 "패들렛 초대" 버튼이 회차(일자)별로 클립보드에 복사할 때 쓴다 |
 | `A\|course_id 앞8자리` | 담당자 소유이나 보관 대상 (`tax_invoice`·`closed`·`stopped`) |
 
 `|`로 구분되므로 값에 `|`가 들어가면 파싱이 깨진다. 스크립트가 형식 오류를 감지하면 중단한다.

@@ -479,6 +479,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
   <div class="tabs">
     <button class="tab active" id="tab-active" onclick="switchTab('active')"><i class="ti ti-progress"></i>진행 중<span class="count" id="count-active">0</span></button>
     <button class="tab" id="tab-archived" onclick="switchTab('archived')"><i class="ti ti-archive"></i>교육 완료<span class="count" id="count-archived">0</span></button>
+    <button class="tab" id="tab-completed" onclick="switchTab('completed')"><i class="ti ti-circle-check"></i>완료<span class="count" id="count-completed">0</span></button>
     <button class="tab" id="tab-overview" onclick="switchTab('overview')"><i class="ti ti-layout-grid"></i>전체보기<span class="count" id="count-overview">0</span></button>
   </div>
 
@@ -1009,6 +1010,20 @@ function lastTrainingDate(c) {
   return sorted[sorted.length - 1];
 }
 
+// 세금계산서 발행, 만족도조사 확인 등 칸반보드의 모든 업무가 완료됐는지 여부.
+function isFullyDone(c) {
+  return state.tasks.length > 0 && state.tasks.every(t => ((c.status && c.status[t.id]) || 0) === 2);
+}
+
+// 탭에 표시할 프로젝트 목록. '완료' 탭은 교육 완료된 프로젝트 중 칸반보드를
+// 전부 채운 것만, '교육 완료' 탭은 그 나머지만 보여준다.
+function companiesForTab(tab) {
+  if (tab === 'overview') return state.companies;
+  if (tab === 'active') return state.companies.filter(c => !c.archived);
+  if (tab === 'completed') return state.companies.filter(c => c.archived && isFullyDone(c));
+  return state.companies.filter(c => c.archived && !isFullyDone(c));
+}
+
 // 마지막 교육 일자가 오늘보다 지난 프로젝트를 '교육 완료' 탭으로 자동 이동.
 // 사용자가 직접 '복원'한 프로젝트는 예외(autoArchiveExempt)로 두고,
 // 일정이 다시 오늘 이후로 바뀌면 예외를 해제한다.
@@ -1107,8 +1122,7 @@ function renderHead() {
 function renderBody() {
   const tbody = document.getElementById('tbody');
   const colCount = state.tasks.length + 2;
-  const visible = state.companies
-    .filter(c => currentTab === 'active' ? !c.archived : c.archived)
+  const visible = companiesForTab(currentTab)
     .sort((a, b) => {
       const getEarliestDate = c => {
         const dates = (c.sessions || []).flatMap(s => s.dates || []).filter(Boolean);
@@ -1122,8 +1136,10 @@ function renderBody() {
       return new Date(da) - new Date(db);
     });
   if (!visible.length) {
-    const msg = currentTab === 'active' ? '진행 중인 프로젝트가 없습니다' : '교육 완료된 프로젝트가 없습니다';
-    const icon = currentTab === 'active' ? 'ti-inbox' : 'ti-archive';
+    const emptyMsgMap = { active: '진행 중인 프로젝트가 없습니다', archived: '교육 완료된 프로젝트가 없습니다', completed: '완료된 프로젝트가 없습니다' };
+    const emptyIconMap = { active: 'ti-inbox', archived: 'ti-archive', completed: 'ti-circle-check' };
+    const msg = emptyMsgMap[currentTab] || emptyMsgMap.archived;
+    const icon = emptyIconMap[currentTab] || emptyIconMap.archived;
     tbody.innerHTML = `<tr class="empty-row"><td colspan="${colCount}"><i class="ti ${icon}" style="font-size:28px; color: var(--text-tertiary); display:block; margin-bottom:10px;"></i>${msg}</td></tr>`;
     return;
   }
@@ -1356,7 +1372,7 @@ function refreshMemoTrigger(c) {
 // 특이사항 모아보기 패널 (현재 탭 기준, 모든 교육의 미완료 특이사항을 한 화면에)
 // ─────────────────────────────────────────────────────────────
 function memoOverviewEntries() {
-  const visibleCompanies = currentTab === 'overview' ? state.companies : state.companies.filter(c => currentTab === 'active' ? !c.archived : c.archived);
+  const visibleCompanies = companiesForTab(currentTab);
   return visibleCompanies
     .map(c => ({ c, items: memoItems(c.memo).filter(l => !/^\s*(?:-\s*)?~~.+~~\s*$/.test(l)) }))
     .filter(e => e.items.length);
@@ -1447,11 +1463,13 @@ function cleanupCompanyMemo(companyId) {
 
 function renderSummary() {
   const activeCount = state.companies.filter(c => !c.archived).length;
-  const archivedCount = state.companies.filter(c => c.archived).length;
+  const archivedCount = state.companies.filter(c => c.archived && !isFullyDone(c)).length;
+  const completedCount = state.companies.filter(c => c.archived && isFullyDone(c)).length;
   document.getElementById('count-active').textContent = activeCount;
   document.getElementById('count-archived').textContent = archivedCount;
+  document.getElementById('count-completed').textContent = completedCount;
   document.getElementById('count-overview').textContent = state.companies.filter(c => !c.archived && c.trainingStatus !== '교육종료').length;
-  const visibleCompanies = currentTab === 'overview' ? state.companies : state.companies.filter(c => currentTab === 'active' ? !c.archived : c.archived);
+  const visibleCompanies = companiesForTab(currentTab);
   const taskCount = state.tasks.length;
   let totalDone = 0, totalAll = 0;
   visibleCompanies.forEach(c => {
@@ -1462,7 +1480,8 @@ function renderSummary() {
     });
   });
   const pct = totalAll ? Math.round(totalDone / totalAll * 100) : 0;
-  const label = currentTab === 'active' ? '진행 중' : (currentTab === 'archived' ? '교육 완료' : '전체');
+  const labelMap = { active: '진행 중', archived: '교육 완료', completed: '완료' };
+  const label = labelMap[currentTab] || '전체';
   document.getElementById('summary').innerHTML = `<strong>${label} ${visibleCompanies.length}개</strong> · <strong>${taskCount}개 업무</strong> · 평균 진행률 <strong>${pct}%</strong>`;
 }
 
@@ -1852,6 +1871,7 @@ function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-active').classList.toggle('active', tab === 'active');
   document.getElementById('tab-archived').classList.toggle('active', tab === 'archived');
+  document.getElementById('tab-completed').classList.toggle('active', tab === 'completed');
   document.getElementById('tab-overview').classList.toggle('active', tab === 'overview');
   document.getElementById('table-view').style.display = tab === 'overview' ? 'none' : '';
   document.getElementById('card-view').style.display = tab === 'overview' ? 'grid' : 'none';
@@ -1861,7 +1881,7 @@ function switchTab(tab) {
 function jumpToCompany(id) {
   const c = state.companies.find(c => c.id === id);
   if (!c) return;
-  switchTab(c.archived ? 'archived' : 'active');
+  switchTab(!c.archived ? 'active' : (isFullyDone(c) ? 'completed' : 'archived'));
   setTimeout(() => {
     const row = document.getElementById('company-row-' + id);
     if (!row) return;
@@ -2147,6 +2167,23 @@ function openLectureShare(companyId) {
 function openPadletShare(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
+  const sessionBlocks = (c.sessions || [])
+    .map(s => {
+      const dates = (s.dates && s.dates.length) ? s.dates : (s.date ? [s.date] : []);
+      const emails = [...new Set([...(s.instructorEmails || []), ...(s.tutorEmails || [])])];
+      return { dateLabel: dates.join(', '), emails };
+    })
+    .filter(b => b.dateLabel && b.emails.length);
+  if (sessionBlocks.length) {
+    const text = sessionBlocks.map(b => `[${b.dateLabel}]\n${b.emails.join(',')}`).join('\n\n');
+    const totalCount = new Set(sessionBlocks.flatMap(b => b.emails)).size;
+    navigator.clipboard.writeText(text).then(() => {
+      showCopyToast(`${sessionBlocks.length}개 회차 · ${totalCount}명`, '회차별 이메일 복사됨 — 패들렛 초대창에 붙여넣기 하세요');
+    }).catch(() => {
+      prompt('아래 회차별 이메일 목록을 복사해서 패들렛 초대창에 붙여넣으세요:', text);
+    });
+    return;
+  }
   const parts = ['/padlet-share'];
   if (c.name) parts.push(`기업명:${c.name}`);
   if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
