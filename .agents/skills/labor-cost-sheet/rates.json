@@ -1,0 +1,25 @@
+{
+  "_comment": "등급별 시급(원/시간). ax-hub qualification_catalog.code 를 키로 쓴다. 정산 금액이 아니라 build_rows.py --axhub 검산 전용이다 (실제 지급액은 로우데이터 제출값). null = 단가 미정 → 검산에서 제외.",
+  "_updated": "2026-08-02",
+  "currency": "KRW",
+  "hourly_rates": {
+    "main_l1": 60000,
+    "main_l2": 80000,
+    "main_l3": 100000,
+    "main_l4": 130000,
+    "main_l5": 150000,
+    "main_l6": null,
+
+    "tutor_l1": 30000,
+    "tutor_l2": 30000,
+    "tutor_l3": 30000,
+
+    "mentor_l1": null,
+    "mentor_l2": null,
+    "mentor_l3": null,
+
+    "special_base": null,
+    "special_speaker": null,
+    "special_ms": null
+  }
+}

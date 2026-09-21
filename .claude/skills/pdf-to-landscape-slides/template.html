@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>[고객사/문서명] — 슬라이드</title>
+<!--
+  ========================================================================
+  가로 슬라이드 변환 템플릿 (16:9 · 네이비+레드 테마)
+  - 이 파일은 읽기 전용 원본. 실제 작업은 복사해서 쓰고 이 파일은 수정하지 않는다.
+  - {{...}} 자리표시자를 실제 값으로 치환. 슬라이드 <section class="slide">를
+    통째로 복사해 필요한 만큼 늘리거나 줄인다.
+  - Chrome 헤드리스로 PDF 변환 (Windows 역슬래시 경로 필수):
+    chrome --headless --disable-gpu --no-pdf-header-footer \
+      --print-to-pdf="OUT.pdf" "IN.html"
+  ========================================================================
+-->
+<style>
+  @page { size: 338mm 190mm; margin: 0; }   /* 16:9 랜드스케이프 */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --navy:#1a2744; --navy2:#28395c; --red:#d3211a; --red-soft:#fdeceb;
+    --ink:#20242c; --muted:#6b7280; --line:#e3e6ec; --bg-soft:#f4f6fa;
+  }
+  html,body{ width:338mm; }
+  body{ font-family:"Malgun Gothic","맑은 고딕",sans-serif; color:var(--ink);
+        -webkit-print-color-adjust:exact; print-color-adjust:exact; background:#e8e9ec; }
+
+  .slide{ width:338mm; height:190mm; background:#fff; position:relative;
+          page-break-after:always; overflow:hidden; }
+  .slide:last-child{ page-break-after:auto; }
+
+  .bar{ position:absolute; top:0; left:0; right:0; height:9mm; background:var(--navy); }
+  .bar::after{ content:""; position:absolute; top:0; right:0; width:26mm; height:9mm; background:var(--red); }
+  .kicker{ position:absolute; top:0; left:14mm; height:9mm; display:flex; align-items:center;
+           color:#fff; font-size:17px; letter-spacing:1.5px; font-weight:700; }
+  .foot{ position:absolute; bottom:0; left:0; right:0; height:8mm; display:flex; align-items:center;
+         justify-content:space-between; padding:0 14mm; font-size:17px; color:var(--muted); border-top:1px solid var(--line); }
+  .foot b{ color:var(--navy2); }
+  .content{ position:absolute; top:9mm; left:0; right:0; bottom:8mm; padding:9mm 16mm 6mm;
+             display:flex; flex-direction:column; justify-content:center; }
+  .content.top{ justify-content:flex-start; }
+
+  h1.slide-title{ font-size:30px; font-weight:800; color:var(--navy); margin-bottom:3mm; letter-spacing:-0.3px; }
+  .eyebrow{ font-size:17px; font-weight:700; color:var(--red); letter-spacing:1px; margin-bottom:2mm; text-transform:uppercase; }
+  .rule{ width:36mm; height:2.6mm; background:var(--red); margin-bottom:5mm; border-radius:2px; }
+
+  .two-col{ display:flex; gap:10mm; height:100%; align-items:center; }
+  .col{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }
+  .grid2{ display:grid; grid-template-columns:repeat(2,1fr); gap:8mm; }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:6mm; }
+
+  table{ width:100%; border-collapse:collapse; font-size:17px; }
+  th,td{ border:1px solid var(--line); padding:4.5mm 5mm; text-align:left; vertical-align:top; }
+  th{ background:var(--navy); color:#fff; font-weight:700; font-size:17px; }
+  tr:nth-child(even) td{ background:var(--bg-soft); }
+  table.compact th, table.compact td{ padding:3mm 4mm; font-size:17px; }
+  td.center, th.center{ text-align:center; }
+
+  ul.bullets{ list-style:none; }
+  ul.bullets li{ position:relative; padding-left:7mm; margin-bottom:3.2mm; font-size:18px; line-height:1.5; }
+  ul.bullets li::before{ content:""; position:absolute; left:0; top:1.9mm; width:3mm; height:3mm; background:var(--red); border-radius:50%; }
+  ul.bullets.small li{ font-size:17px; margin-bottom:2.4mm; }
+
+  .card{ background:var(--bg-soft); border-left:4px solid var(--red); border-radius:2px; padding:5mm 6mm; }
+  .card-title{ font-weight:800; color:var(--navy); font-size:18px; margin-bottom:1.5mm; }
+  .card p{ font-size:17px; color:#374151; line-height:1.55; }
+
+  .tag{ display:inline-block; background:var(--navy); color:#fff; font-size:17px; font-weight:700;
+        padding:1.2mm 3mm; border-radius:20px; margin-right:2mm; }
+  .tag.red{ background:var(--red); }
+
+  .prompt{ background:var(--navy); color:#e8ecf5; font-family:Consolas,monospace; font-size:17px;
+            padding:4.5mm 6mm; border-radius:3px; margin:3mm 0; }
+  .prompt::before{ content:"입력할 프롬프트"; display:block; color:#9fb0d0; font-size:17px; font-weight:700;
+                    font-family:"Malgun Gothic",sans-serif; margin-bottom:1.5mm; letter-spacing:1px; }
+  .prompt.pre{ white-space:pre-wrap; line-height:1.35; }
+
+  .mini-h{ font-size:19px; font-weight:800; color:var(--navy); margin:0 0 2.5mm; display:flex; align-items:center; gap:2.5mm; }
+  .mini-h::before{ content:""; width:3mm; height:11px; background:var(--red); display:inline-block; border-radius:1px; }
+
+  .quote{ font-size:24px; font-weight:700; color:var(--navy); text-align:center; line-height:1.5; padding:0 20mm; }
+  .quote::before, .quote::after{ color:var(--red); font-size:30px; font-weight:900; }
+  .quote::before{ content:"“"; }
+  .quote::after{ content:"”"; }
+
+  .title-slide .content{ display:flex; flex-direction:column; justify-content:center; padding-left:20mm; padding-right:20mm; }
+  .title-slide .badge{ align-self:flex-start; background:var(--red); color:#fff; font-size:17px; font-weight:700;
+                        padding:2mm 5mm; border-radius:20px; margin-bottom:6mm; letter-spacing:1px; }
+  .title-slide h1{ font-size:44px; font-weight:800; color:var(--navy); margin-bottom:3mm; }
+  .title-slide h2{ font-size:26px; font-weight:700; color:var(--red); margin-bottom:8mm; }
+  .title-slide .desc{ font-size:19px; color:#4b5566; max-width:220mm; line-height:1.7; margin-bottom:8mm; }
+</style>
+</head>
+<body>
+
+<!-- 표지 슬라이드 -->
+<section class="slide title-slide">
+  <div class="bar"></div><div class="kicker">{{상단 좌측 라벨}}</div>
+  <div class="content">
+    <div class="badge">{{배지 텍스트}}</div>
+    <h1>{{문서 제목}}</h1>
+    <h2>{{부제목}}</h2>
+    <p class="desc">{{한두 문장 소개}}</p>
+    <div class="grid3">
+      <div class="card"><div class="card-title">{{요약 카드1 제목}}</div><p>{{내용}}</p></div>
+      <div class="card"><div class="card-title">{{요약 카드2 제목}}</div><p>{{내용}}</p></div>
+      <div class="card"><div class="card-title">{{요약 카드3 제목}}</div><p>{{내용}}</p></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>{{문서명}}</b> {{부가정보}}</span><span>01 / N</span></div>
+</section>
+
+<!-- 표 슬라이드 예시 -->
+<section class="slide">
+  <div class="bar"></div><div class="kicker">{{섹션 라벨}}</div>
+  <div class="content">
+    <h1 class="slide-title">{{슬라이드 제목}}</h1>
+    <div class="rule"></div>
+    <table class="compact">
+      <tr><th>{{열1}}</th><th>{{열2}}</th><th>{{열3}}</th></tr>
+      <tr><td>{{내용}}</td><td>{{내용}}</td><td>{{내용}}</td></tr>
+    </table>
+  </div>
+  <div class="foot"><span><b>{{문서명}}</b></span><span>02 / N</span></div>
+</section>
+
+<!-- 상하 구성 슬라이드 예시 (기본형) — 위쪽 소제목/프롬프트, 아래쪽 소제목/결과. 대부분의 "Step 설명 → 프롬프트 → 결과" 슬라이드는 이 형태를 쓴다. -->
+<section class="slide">
+  <div class="bar"></div><div class="kicker">{{섹션 라벨}}</div>
+  <div class="content">
+    <h1 class="slide-title sm">{{위쪽 소제목}}</h1>
+    <div class="rule sm"></div>
+    <p style="font-size:16px;color:#374151">{{목적 한 줄 설명}}</p>
+    <div class="prompt">{{입력할 프롬프트 — 전체 폭으로, 절대 좌우로 쪼개지 않는다}}</div>
+    <div class="grid2">
+      <div class="card"><div class="card-title">{{아래쪽 소제목1 — 예: 예상 결과}}</div><p>{{내용}}</p></div>
+      <div class="card"><div class="card-title">{{아래쪽 소제목2 — 예: 잘 안될 때}}</div><p>{{내용}}</p></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>{{문서명}}</b></span><span>03 / N</span></div>
+</section>
+
+<!-- 좌우 비교 슬라이드 예시 (예외형) — 서로 다른 두 항목(예: Step A vs Step B, Before/After)을 나란히 비교할 때만 쓴다.
+     이때도 각 칼럼 내부의 프롬프트는 그 칼럼 폭 전체를 쓰게 하고, 두 항목의 결과·주의사항은 칼럼을 나누지 말고 아래쪽에 모아 grid2로 배치한다. -->
+<section class="slide">
+  <div class="bar"></div><div class="kicker">{{섹션 라벨}}</div>
+  <div class="content">
+    <div class="two-col">
+      <div class="col">
+        <div class="mini-h">{{왼쪽 항목 제목}}</div>
+        <ul class="bullets small"><li>{{항목}}</li></ul>
+      </div>
+      <div class="col">
+        <div class="mini-h">{{오른쪽 항목 제목}}</div>
+        <div class="card"><p>{{내용}}</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>{{문서명}}</b></span><span>04 / N</span></div>
+</section>
+
+</body>
+</html>

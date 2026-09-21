@@ -4,5 +4,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
   }
 }

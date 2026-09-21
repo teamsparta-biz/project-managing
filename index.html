@@ -186,8 +186,34 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .meta-row .d-tag.soon { background: color-mix(in srgb, var(--color-d-soon) 15%, transparent); color: var(--color-d-soon); border-color: color-mix(in srgb, var(--color-d-soon) 30%, transparent); }
 .meta-row .d-tag.over { background: color-mix(in srgb, var(--color-d-over) 15%, transparent); color: var(--color-d-over); border-color: color-mix(in srgb, var(--color-d-over) 30%, transparent); }
 .meta-row .d-tag.dday { background: color-mix(in srgb, var(--color-d-dday) 18%, transparent); color: var(--color-d-dday); border-color: color-mix(in srgb, var(--color-d-dday) 35%, transparent); }
-.meta-row textarea.memo-input { border: 1px solid transparent; background: transparent; font-size: 12px; color: var(--text-primary); font-family: var(--font-sans); padding: 4px 6px; border-radius: 4px; outline: none; flex: 1; resize: none; line-height: 1.5; min-height: 22px; }
-.meta-row textarea.memo-input:hover, .meta-row textarea.memo-input:focus { background: var(--bg-secondary); border-color: var(--border-tertiary); }
+
+/* 교육별 업무 특이사항 (행 확장 드로어) */
+.memo-trigger { width: 100%; display: flex; align-items: center; gap: 6px; padding: 5px 7px; border: 1px solid var(--border-tertiary); background: transparent; border-radius: var(--radius-md); cursor: pointer; font-family: var(--font-sans); font-size: 11px; color: var(--text-secondary); text-align: left; line-height: 1.4; }
+.memo-trigger:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.memo-trigger i { font-size: 13px; flex-shrink: 0; }
+.memo-trigger .memo-trigger-label { flex-shrink: 0; }
+.memo-trigger.has-items { border-color: color-mix(in srgb, var(--color-status-progress) 40%, transparent); color: var(--text-primary); }
+.memo-count-badge { flex-shrink: 0; min-width: 16px; padding: 0 5px; height: 16px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 10px; font-weight: 600; background: color-mix(in srgb, var(--color-status-progress) 18%, transparent); color: var(--color-status-progress); }
+.memo-peek { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-tertiary); }
+.memo-caret { margin-left: auto; transition: transform 0.15s; }
+.memo-trigger.open .memo-caret { transform: rotate(180deg); }
+
+.memo-drawer-cell { padding: 0 !important; background: var(--bg-secondary); border-top: 1px solid var(--border-tertiary); }
+.memo-drawer { padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 10px; }
+.memo-drawer-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.memo-drawer-title { font-size: 13px; font-weight: 500; color: var(--text-primary); display: inline-flex; align-items: center; gap: 7px; }
+.memo-drawer-title i { font-size: 15px; color: var(--text-secondary); }
+.memo-drawer-title .memo-drawer-sub { color: var(--text-tertiary); font-weight: 400; font-size: 12px; }
+.memo-drawer-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.memo-drawer-actions .archive-btn { width: auto; padding: 6px 10px; }
+.memo-drawer-input { width: 100%; min-height: 132px; padding: 12px 14px; font-size: 13px; font-family: var(--font-sans); line-height: 1.7; border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary); outline: none; resize: vertical; box-sizing: border-box; }
+.memo-drawer-input:focus { border-color: color-mix(in srgb, var(--color-status-progress) 45%, transparent); }
+.memo-drawer-input::placeholder { color: var(--text-tertiary); opacity: 0.75; white-space: pre-line; }
+.memo-drawer-foot { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-tertiary); flex-wrap: wrap; }
+.memo-done-toggle { background: none; border: none; padding: 0; font-family: var(--font-sans); font-size: 11px; color: var(--text-tertiary); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.memo-done-toggle:hover { color: var(--text-primary); }
+.memo-done-pane { border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-primary); }
+.memo-done-pane textarea { width: 100%; min-height: 96px; padding: 10px 14px; font-size: 12px; font-family: var(--font-sans); line-height: 1.7; border: none; background: transparent; color: var(--text-secondary); outline: none; resize: vertical; box-sizing: border-box; }
 
 .period-row { margin-top: 8px; padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-tertiary); }
 .period-label { font-size: 11px; color: var(--text-tertiary); font-weight: 500; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 6px; letter-spacing: 0.2px; }
@@ -943,6 +969,44 @@ function periodInfo(startStr, endStr) {
   return '';
 }
 
+// ─────────────────────────────────────────────────────────────
+// 교육 종료일 기준 자동 아카이브
+// ─────────────────────────────────────────────────────────────
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// 프로젝트의 마지막 교육 일자(YYYY-MM-DD). 일정이 없으면 빈 문자열.
+function lastTrainingDate(c) {
+  const dates = (c.sessions || [])
+    .flatMap(s => (s.dates && s.dates.length) ? s.dates : (s.date ? [s.date] : []))
+    .filter(Boolean);
+  if (!dates.length) return '';
+  const sorted = dates.slice().sort();
+  return sorted[sorted.length - 1];
+}
+
+// 마지막 교육 일자가 오늘보다 지난 프로젝트를 '교육 완료' 탭으로 자동 이동.
+// 사용자가 직접 '복원'한 프로젝트는 예외(autoArchiveExempt)로 두고,
+// 일정이 다시 오늘 이후로 바뀌면 예외를 해제한다.
+function autoArchivePastTrainings() {
+  const today = todayKey();
+  let changed = false;
+  (state.companies || []).forEach(c => {
+    const last = lastTrainingDate(c);
+    if (!last) return;
+    if (last >= today) {
+      if (c.autoArchiveExempt) { delete c.autoArchiveExempt; changed = true; }
+      return;
+    }
+    if (c.archived || c.autoArchiveExempt) return;
+    c.archived = true;
+    changed = true;
+  });
+  return changed;
+}
+
 function deadlineInfo(dateStr) {
   if (!dateStr) return { cls: '', label: '' };
   const today = new Date();
@@ -1099,8 +1163,7 @@ function renderBody() {
           <button class="archive-btn del-action-btn" onclick="delCompany(${c.id})" title="프로젝트 삭제"><i class="ti ti-trash"></i>삭제</button>
         </div>
         <div class="meta-row" style="margin-top: 8px;">
-          <i class="ti ti-notes"></i>
-          <textarea class="memo-input" rows="1" placeholder="메모 추가..." oninput="autoGrow(this); updateField(${c.id}, 'memo', this.value)">${escHtml(c.memo || '')}</textarea>
+          ${memoTriggerHTML(c)}
         </div>
       </td>
       ${cells}
@@ -1144,9 +1207,158 @@ function renderBody() {
           </div>
         </div>
       </td>
+    </tr>
+    <tr class="memo-drawer-row" id="memo-drawer-row-${c.id}" style="display:${memoDrawerOpen[c.id] ? '' : 'none'};">
+      <td class="memo-drawer-cell" colspan="${colCount}">${memoDrawerHTML(c)}</td>
     </tr>`;
   }).join('');
-  document.querySelectorAll('.memo-input').forEach(autoGrow);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 교육별 업무 특이사항 (행 확장 드로어)
+// ─────────────────────────────────────────────────────────────
+const memoDrawerOpen = {};
+const memoDoneOpen = {};
+
+function memoItems(text) {
+  return (text || '').split('\n').map(l => l.trim()).filter(l => l && !/^#{1,6}\s/.test(l));
+}
+
+function memoOpenCount(text) {
+  return memoItems(text).filter(l => !/^\s*(?:-\s*)?~~.+~~\s*$/.test(l)).length;
+}
+
+function memoPeekText(text) {
+  const line = memoItems(text).find(l => !/^\s*(?:-\s*)?~~.+~~\s*$/.test(l)) || memoItems(text)[0] || '';
+  return line.replace(/^-\s*/, '').replace(/~~(.+?)~~/g, '$1');
+}
+
+function fmtMemoTime(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const da = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${mo}/${da} ${h}:${mi}`;
+}
+
+function memoTriggerHTML(c) {
+  const n = memoOpenCount(c.memo);
+  const peek = memoPeekText(c.memo);
+  const open = !!memoDrawerOpen[c.id];
+  return `<button type="button" class="memo-trigger${n ? ' has-items' : ''}${open ? ' open' : ''}" id="memo-trigger-${c.id}" onclick="toggleMemoDrawer(${c.id})" title="이 교육의 업무 특이사항 열기/닫기">
+    <i class="ti ti-notes"></i><span class="memo-trigger-label">특이사항</span>
+    <span class="memo-count-badge" id="memo-count-${c.id}"${n ? '' : ' style="display:none;"'}>${n}</span>
+    <span class="memo-peek" id="memo-peek-${c.id}">${peek ? escHtml(peek) : '내용 없음'}</span>
+    <i class="ti ti-chevron-down memo-caret"></i>
+  </button>`;
+}
+
+function memoDrawerHTML(c) {
+  const doneOpen = !!memoDoneOpen[c.id];
+  const doneCount = memoItems(c.memoCompleted).filter(l => /^-\s*/.test(l)).length;
+  const sub = [c.name, c.trainingName].filter(Boolean).map(escHtml).join(' · ');
+  return `<div class="memo-drawer">
+    <div class="memo-drawer-head">
+      <span class="memo-drawer-title"><i class="ti ti-notes"></i>업무 특이사항<span class="memo-drawer-sub">${sub}</span></span>
+      <div class="memo-drawer-actions">
+        <button class="archive-btn" onclick="cleanupCompanyMemo(${c.id})" title="~~취소선~~ 처리한 항목을 완료로 이관"><i class="ti ti-eraser"></i>정리하기</button>
+        <button class="archive-btn" onclick="toggleMemoDrawer(${c.id})" title="접기"><i class="ti ti-chevron-up"></i>접기</button>
+      </div>
+    </div>
+    <textarea class="memo-drawer-input" id="memo-input-${c.id}" oninput="updateMemo(${c.id}, this.value)" placeholder="이 교육에서 발생한 특이사항을 기록하세요...&#10;&#10;예) - 강사 일정 조율 필요 (수요일 오후 불가)&#10;    - 주차 등록 명단 3일 전까지 회신&#10;    - ~~완료한 항목은 취소선~~ 후 정리하기">${escHtml(c.memo || '')}</textarea>
+    <div class="memo-drawer-foot">
+      <button class="memo-done-toggle" onclick="toggleMemoDone(${c.id})"><i class="ti ti-circle-check"></i>완료 ${doneCount}건 ${doneOpen ? '접기' : '보기'}</button>
+      <span class="notes-divider">·</span>
+      <span id="memo-updated-${c.id}">${c.memoUpdated ? '최종 수정 ' + fmtMemoTime(c.memoUpdated) : '아직 작성된 내용 없음'}</span>
+    </div>
+    ${doneOpen ? `<div class="memo-done-pane"><textarea oninput="updateMemoCompleted(${c.id}, this.value)" placeholder="정리하기로 이관된 완료 항목이 여기에 모입니다...">${escHtml(c.memoCompleted || '')}</textarea></div>` : ''}
+  </div>`;
+}
+
+function toggleMemoDrawer(companyId) {
+  const row = document.getElementById('memo-drawer-row-' + companyId);
+  const trigger = document.getElementById('memo-trigger-' + companyId);
+  if (!row) return;
+  const open = !memoDrawerOpen[companyId];
+  memoDrawerOpen[companyId] = open;
+  row.style.display = open ? '' : 'none';
+  if (trigger) trigger.classList.toggle('open', open);
+  if (open) {
+    const ta = document.getElementById('memo-input-' + companyId);
+    if (ta) ta.focus();
+  }
+}
+
+function toggleMemoDone(companyId) {
+  memoDoneOpen[companyId] = !memoDoneOpen[companyId];
+  const c = state.companies.find(c => c.id === companyId);
+  const row = document.getElementById('memo-drawer-row-' + companyId);
+  if (!c || !row) return;
+  const cell = row.querySelector('.memo-drawer-cell');
+  if (cell) cell.innerHTML = memoDrawerHTML(c);
+}
+
+function updateMemo(companyId, value) {
+  const c = state.companies.find(c => c.id === companyId);
+  if (!c) return;
+  c.memo = value;
+  c.memoUpdated = new Date().toISOString();
+  refreshMemoTrigger(c);
+  const updatedEl = document.getElementById('memo-updated-' + companyId);
+  if (updatedEl) updatedEl.textContent = '최종 수정 ' + fmtMemoTime(c.memoUpdated);
+  saveState();
+}
+
+function updateMemoCompleted(companyId, value) {
+  const c = state.companies.find(c => c.id === companyId);
+  if (!c) return;
+  c.memoCompleted = value;
+  saveState();
+}
+
+function refreshMemoTrigger(c) {
+  const countEl = document.getElementById('memo-count-' + c.id);
+  const peekEl = document.getElementById('memo-peek-' + c.id);
+  const trigger = document.getElementById('memo-trigger-' + c.id);
+  const n = memoOpenCount(c.memo);
+  if (countEl) { countEl.textContent = n; countEl.style.display = n ? '' : 'none'; }
+  if (peekEl) peekEl.textContent = memoPeekText(c.memo) || '내용 없음';
+  if (trigger) trigger.classList.toggle('has-items', n > 0);
+}
+
+function cleanupCompanyMemo(companyId) {
+  const c = state.companies.find(c => c.id === companyId);
+  if (!c) return;
+  const lines = (c.memo || '').split('\n');
+  const completed = [];
+  const remainingLines = [];
+  lines.forEach(line => {
+    if (/^\s*(?:-\s*)?~~.+~~\s*$/.test(line)) {
+      completed.push(line.replace(/~~(.+?)~~/g, '$1').replace(/^\s*-\s*/, '- ').trim());
+    } else {
+      remainingLines.push(line);
+    }
+  });
+  if (completed.length === 0) {
+    showCopyToast('취소선(~~항목~~) 처리된 항목이 없습니다');
+    return;
+  }
+  const now = new Date();
+  const stamp = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+  const block = [`[${stamp} 정리]`, ...completed].join('\n');
+  c.memoCompleted = c.memoCompleted ? c.memoCompleted + '\n\n' + block : block;
+  while (remainingLines.length > 0 && remainingLines[remainingLines.length - 1].trim() === '') remainingLines.pop();
+  c.memo = remainingLines.join('\n');
+  c.memoUpdated = now.toISOString();
+  memoDoneOpen[companyId] = true;
+  const row = document.getElementById('memo-drawer-row-' + companyId);
+  const cell = row && row.querySelector('.memo-drawer-cell');
+  if (cell) cell.innerHTML = memoDrawerHTML(c);
+  refreshMemoTrigger(c);
+  saveState();
+  showCopyToast(`${completed.length}개 항목이 완료로 이동되었습니다`);
 }
 
 function renderSummary() {
@@ -1219,6 +1431,8 @@ function onNotesInput(e) {
 }
 
 function render() {
+  // 지난 교육은 렌더 직전에 '교육 완료'로 이동시켜 탭 분류를 항상 최신 상태로 유지
+  autoArchivePastTrainings();
   // 저장을 가장 먼저 예약 — 이후 렌더 단계에서 예외가 나도 칸반보드 선택값(체크 상태 등)이 DB에 반드시 저장되도록.
   saveState();
   renderHead(); renderBody(); renderCardView(); renderSummary(); renderNotes(); setupStickyHeader();
@@ -1512,7 +1726,7 @@ function addCompany() {
   const status = {};
   state.tasks.forEach(t => status[t.id] = 0);
   const newId = nextCompanyId++;
-  state.companies.push({ id: newId, name, trainingName: '', sessions: [{ id: 'session_' + newId + '_1', dates: [], startTime: '', endTime: '', instructorName: '', tutorName: '' }], trainingStatus: '', location: '', deadline: '', memo: '', archived: false, status });
+  state.companies.push({ id: newId, name, trainingName: '', sessions: [{ id: 'session_' + newId + '_1', dates: [], startTime: '', endTime: '', instructorName: '', tutorName: '' }], trainingStatus: '', location: '', deadline: '', memo: '', memoCompleted: '', memoUpdated: null, archived: false, status });
   inp.value = '';
   if (currentTab !== 'active') switchTab('active'); else render();
 }
@@ -1537,6 +1751,7 @@ function archiveCompany(id) {
   const c = state.companies.find(c => c.id === id);
   if (!c) return;
   c.archived = true;
+  delete c.autoArchiveExempt;
   render();
 }
 
@@ -1544,6 +1759,8 @@ function restoreCompany(id) {
   const c = state.companies.find(c => c.id === id);
   if (!c) return;
   c.archived = false;
+  // 교육 일자가 이미 지났더라도 수동 복원은 유지되어야 하므로 자동 아카이브 예외 처리
+  c.autoArchiveExempt = true;
   render();
 }
 
@@ -1807,6 +2024,7 @@ function openTaxInvoiceInquiry(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
   const parts = ['/tax-invoice-inquiry'];
+  if (c.name) parts.push(`기업명:${c.name}`);
   if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
   if (c.contactName) parts.push(`담당자성함:${c.contactName}`);
   if (c.contactPosition) parts.push(`담당자직책:${c.contactPosition}`);
@@ -2230,6 +2448,14 @@ document.addEventListener('keydown', e => {
   }
   initNotesHistory(state.notes || '');
   render();
+  // 앱을 켜 둔 채 날짜가 바뀌면 지난 교육을 자동으로 '교육 완료'로 이동
+  let autoArchiveDay = todayKey();
+  setInterval(() => {
+    const day = todayKey();
+    if (day === autoArchiveDay) return;
+    autoArchiveDay = day;
+    render();
+  }, 60000);
 })();
 </script>
 </body>
