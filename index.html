@@ -215,6 +215,25 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .memo-done-pane { border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-primary); }
 .memo-done-pane textarea { width: 100%; min-height: 96px; padding: 10px 14px; font-size: 12px; font-family: var(--font-sans); line-height: 1.7; border: none; background: transparent; color: var(--text-secondary); outline: none; resize: vertical; box-sizing: border-box; }
 
+/* 특이사항 모아보기 패널 */
+.toolbar button .memo-overview-badge { font-size: 10px; font-weight: 600; background: var(--color-status-progress); color: #fff; padding: 1px 6px; border-radius: 999px; min-width: 16px; line-height: 1.5; text-align: center; }
+#memo-overview-toggle.has-items { border-color: color-mix(in srgb, var(--color-status-progress) 45%, transparent); color: var(--color-status-progress); }
+.memo-overview-panel { margin-bottom: 16px; border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-secondary); overflow: hidden; }
+.memo-overview-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border-tertiary); font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.memo-overview-head > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
+.memo-overview-sub { color: var(--text-tertiary); font-weight: 400; font-size: 12px; margin-left: 4px; }
+.memo-overview-close { background: none; border: none; padding: 4px; cursor: pointer; color: var(--text-tertiary); display: inline-flex; }
+.memo-overview-close:hover { color: var(--text-primary); }
+.memo-overview-empty { padding: 28px; text-align: center; color: var(--text-tertiary); font-size: 13px; }
+.memo-overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding: 14px 16px; max-height: 360px; overflow-y: auto; }
+.memo-overview-card { border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-primary); padding: 12px 14px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+.memo-overview-card:hover { border-color: color-mix(in srgb, var(--color-status-progress) 45%, transparent); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.memo-overview-card-head { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
+.memo-overview-company { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.memo-overview-training { font-size: 11px; color: var(--text-tertiary); }
+.memo-overview-list { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.memo-overview-list li { font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+
 .period-row { margin-top: 8px; padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-tertiary); }
 .period-label { font-size: 11px; color: var(--text-tertiary); font-weight: 500; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 6px; letter-spacing: 0.2px; }
 .period-label i { font-size: 12px; }
@@ -448,6 +467,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
     <input type="text" id="new-company" placeholder="기업명 입력 후 Enter..." />
     <button class="primary" onclick="addCompany()"><i class="ti ti-plus"></i> 기업 추가</button>
     <button onclick="openTaskModal()"><i class="ti ti-list-check"></i> 업무 추가</button>
+    <button id="memo-overview-toggle" onclick="toggleMemoOverview()" title="교육별 업무 특이사항을 한 화면에 모아보기"><i class="ti ti-notes"></i> 특이사항 모아보기<span class="memo-overview-badge" id="memo-overview-count" style="display:none;">0</span></button>
     <div class="theme-toggle" role="group" aria-label="테마 선택">
       <button class="theme-btn" data-theme-value="light" onclick="setTheme('light')" title="라이트 모드" aria-label="라이트 모드"><i class="ti ti-sun"></i></button>
       <button class="theme-btn" data-theme-value="auto" onclick="setTheme('auto')" title="시스템 설정 따름" aria-label="시스템 설정 따름"><i class="ti ti-device-desktop"></i></button>
@@ -461,6 +481,8 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
     <button class="tab" id="tab-archived" onclick="switchTab('archived')"><i class="ti ti-archive"></i>교육 완료<span class="count" id="count-archived">0</span></button>
     <button class="tab" id="tab-overview" onclick="switchTab('overview')"><i class="ti ti-layout-grid"></i>전체보기<span class="count" id="count-overview">0</span></button>
   </div>
+
+  <div id="memo-overview-panel" class="memo-overview-panel" style="display:none;"></div>
 
   <div id="table-view">
     <div class="table-wrap">
@@ -1219,6 +1241,7 @@ function renderBody() {
 // ─────────────────────────────────────────────────────────────
 const memoDrawerOpen = {};
 const memoDoneOpen = {};
+let memoOverviewOpen = false;
 
 function memoItems(text) {
   return (text || '').split('\n').map(l => l.trim()).filter(l => l && !/^#{1,6}\s/.test(l));
@@ -1326,6 +1349,67 @@ function refreshMemoTrigger(c) {
   if (countEl) { countEl.textContent = n; countEl.style.display = n ? '' : 'none'; }
   if (peekEl) peekEl.textContent = memoPeekText(c.memo) || '내용 없음';
   if (trigger) trigger.classList.toggle('has-items', n > 0);
+  renderMemoOverview();
+}
+
+// ─────────────────────────────────────────────────────────────
+// 특이사항 모아보기 패널 (현재 탭 기준, 모든 교육의 미완료 특이사항을 한 화면에)
+// ─────────────────────────────────────────────────────────────
+function memoOverviewEntries() {
+  const visibleCompanies = currentTab === 'overview' ? state.companies : state.companies.filter(c => currentTab === 'active' ? !c.archived : c.archived);
+  return visibleCompanies
+    .map(c => ({ c, items: memoItems(c.memo).filter(l => !/^\s*(?:-\s*)?~~.+~~\s*$/.test(l)) }))
+    .filter(e => e.items.length);
+}
+
+function renderMemoOverview() {
+  const panel = document.getElementById('memo-overview-panel');
+  const badge = document.getElementById('memo-overview-count');
+  if (!panel) return;
+  const entries = memoOverviewEntries();
+  if (badge) {
+    badge.style.display = entries.length ? '' : 'none';
+    badge.textContent = entries.length;
+  }
+  panel.style.display = memoOverviewOpen ? '' : 'none';
+  document.getElementById('memo-overview-toggle')?.classList.toggle('has-items', entries.length > 0);
+  if (!memoOverviewOpen) return;
+  if (!entries.length) {
+    panel.innerHTML = `<div class="memo-overview-head"><span><i class="ti ti-notes"></i>특이사항 모아보기</span><button class="memo-overview-close" onclick="toggleMemoOverview()" title="닫기"><i class="ti ti-x"></i></button></div>
+      <div class="memo-overview-empty"><i class="ti ti-notes-off" style="font-size:22px; display:block; margin-bottom:8px;"></i>표시할 특이사항이 없습니다</div>`;
+    return;
+  }
+  panel.innerHTML = `
+    <div class="memo-overview-head">
+      <span><i class="ti ti-notes"></i>특이사항 모아보기<span class="memo-overview-sub">${entries.length}개 교육</span></span>
+      <button class="memo-overview-close" onclick="toggleMemoOverview()" title="닫기"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="memo-overview-grid">
+      ${entries.map(({ c, items }) => `
+        <div class="memo-overview-card" onclick="jumpToMemo(${c.id})" title="클릭하면 해당 교육으로 이동합니다">
+          <div class="memo-overview-card-head">
+            <span class="memo-overview-company">${escHtml(c.name || '이름 없음')}</span>
+            ${c.trainingName ? `<span class="memo-overview-training">${escHtml(c.trainingName)}</span>` : ''}
+          </div>
+          <ul class="memo-overview-list">
+            ${items.map(l => `<li>${escHtml(l.replace(/^-\s*/, '').replace(/~~(.+?)~~/g, '$1'))}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function toggleMemoOverview() {
+  memoOverviewOpen = !memoOverviewOpen;
+  renderMemoOverview();
+}
+
+function jumpToMemo(id) {
+  jumpToCompany(id);
+  setTimeout(() => {
+    if (!memoDrawerOpen[id]) toggleMemoDrawer(id);
+    document.getElementById('memo-drawer-row-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 120);
 }
 
 function cleanupCompanyMemo(companyId) {
@@ -1435,7 +1519,7 @@ function render() {
   autoArchivePastTrainings();
   // 저장을 가장 먼저 예약 — 이후 렌더 단계에서 예외가 나도 칸반보드 선택값(체크 상태 등)이 DB에 반드시 저장되도록.
   saveState();
-  renderHead(); renderBody(); renderCardView(); renderSummary(); renderNotes(); setupStickyHeader();
+  renderHead(); renderBody(); renderCardView(); renderSummary(); renderNotes(); renderMemoOverview(); setupStickyHeader();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -2040,6 +2124,15 @@ function openTaxInvoiceInquiry(companyId) {
 function openLectureShare(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
+  if (Array.isArray(c.inviteEmails) && c.inviteEmails.length) {
+    const emailList = c.inviteEmails.join(',');
+    navigator.clipboard.writeText(emailList).then(() => {
+      showCopyToast(emailList, `이메일 ${c.inviteEmails.length}건 복사됨 — 노션 공유창에 붙여넣기 하세요`);
+    }).catch(() => {
+      prompt('아래 이메일 목록을 복사해서 노션 공유창에 붙여넣으세요:', emailList);
+    });
+    return;
+  }
   const parts = ['/lecture-share'];
   if (c.name) parts.push(`기업명:${c.name}`);
   if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
@@ -2260,7 +2353,7 @@ function openSatisfactionShare(companyId) {
   });
 }
 
-function showCopyToast(cmd) {
+function showCopyToast(cmd, label) {
   let toast = document.getElementById('copy-toast');
   if (!toast) {
     toast = document.createElement('div');
@@ -2268,7 +2361,8 @@ function showCopyToast(cmd) {
     toast.className = 'copy-toast';
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<i class="ti ti-clipboard-check"></i>복사됨 — Claude Code에 붙여넣기 하세요 <code>${escHtml(cmd)}</code>`;
+  const prefix = label || '복사됨 — Claude Code에 붙여넣기 하세요';
+  toast.innerHTML = `<i class="ti ti-clipboard-check"></i>${escHtml(prefix)} <code>${escHtml(cmd)}</code>`;
   toast.classList.add('visible');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);

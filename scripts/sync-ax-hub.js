@@ -6,7 +6,7 @@
  *   node scripts/sync-ax-hub.js <담당자명> <payload파일경로> [--dry-run]
  *
  * payload 파일 형식 (줄 단위, `|` 구분 — /sync-ax-hub 스킬의 단일 SQL이 생성):
- *   C|<course_id(full uuid)>|<기업명>|<교육명>|<status>|<장소>|<교안URL>|<담당자명>|<직책>|<이메일>
+ *   C|<course_id(full uuid)>|<기업명>|<교육명>|<status>|<장소>|<교안URL>|<담당자명>|<직책>|<이메일>|<초대이메일1,초대이메일2,...>
  *   S|<course_id 앞8자리>|<YYYY-MM-DD>|<start_time>|<end_time>|<강사,강사>|<튜터,튜터>
  *   A|<course_id 앞8자리>        ← 담당자 소유이지만 보관 대상(tax_invoice/closed/stopped)
  *
@@ -34,7 +34,7 @@ const STATUS_MAP = { setup: '세팅중', operation: '교육중' };
 
 // 사실 정보(ax-hub 기준으로 덮어쓰는 필드)
 const FACT_FIELDS = ['name', 'trainingName', 'instructorName', 'tutorName',
-  'sessions', 'startAt', 'endAt', 'workbookUrl', 'trainingStatus', 'archived'];
+  'sessions', 'startAt', 'endAt', 'workbookUrl', 'trainingStatus', 'archived', 'inviteEmails'];
 // 빈 값일 때만 채우는 필드 (사용자가 웹앱에서 직접 입력한 값을 덮어쓰지 않음)
 const FILL_IF_EMPTY = ['location', 'contactName', 'contactPosition', 'contactEmail'];
 
@@ -80,6 +80,7 @@ function parsePayload(text) {
         client: f[2] || '', training: f[3] || '', status: f[4] || '',
         location: f[5] || '', workbook: f[6] || '',
         contactName: f[7] || '', contactPosition: f[8] || '', contactEmail: f[9] || '',
+        inviteEmails: [...new Set((f[10] || '').split(',').filter(Boolean))],
       });
     } else if (f[0] === 'S') {
       const key = f[1];
@@ -164,6 +165,7 @@ async function main() {
     co.startAt = rowsFor.length ? `${rowsFor[0].date}T${hhmm(rowsFor[0].st)}` : '';
     co.endAt = rowsFor.length ? `${rowsFor.at(-1).date}T${hhmm(rowsFor.at(-1).et)}` : '';
     co.workbookUrl = meta.workbook;
+    co.inviteEmails = meta.inviteEmails;
     co.trainingStatus = STATUS_MAP[meta.status] || co.trainingStatus || '';
     co.archived = false;
     for (const f of FILL_IF_EMPTY) if (!co[f]) co[f] = meta[f] || '';

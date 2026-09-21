@@ -57,11 +57,20 @@ WITH me AS (
   SELECT * FROM own WHERE status IN ('setup','operation')
 ), wb AS (
   SELECT course_id, min(coalesce(shorten_url, full_url)) AS url FROM workbooks GROUP BY course_id
+), em AS (
+  SELECT cr.course_id, string_agg(DISTINCT coalesce(i.notion_email, i.email), ',') AS emails
+  FROM course_rounds cr
+  JOIN course_sessions cs ON cs.round_id = cr.id
+  JOIN assignments a ON a.course_session_id = cs.id
+  JOIN instructors i ON a.instructor_id = i.id
+  WHERE cr.course_id IN (SELECT id FROM act)
+    AND coalesce(i.notion_email, i.email) IS NOT NULL
+  GROUP BY cr.course_id
 ), ln AS (
   SELECT 1 AS ord, 'C|'||act.id||'|'||act.client||'|'||act.title||'|'||act.status||'|'||
          coalesce(act.place,'')||'|'||coalesce(wb.url,'')||'|'||coalesce(act.cn,'')||'|'||
-         coalesce(act.cp,'')||'|'||coalesce(act.ce,'') AS line
-  FROM act LEFT JOIN wb ON wb.course_id = act.id
+         coalesce(act.cp,'')||'|'||coalesce(act.ce,'')||'|'||coalesce(em.emails,'') AS line
+  FROM act LEFT JOIN wb ON wb.course_id = act.id LEFT JOIN em ON em.course_id = act.id
   UNION ALL
   SELECT 2, 'S|'||left(cr.course_id::text,8)||'|'||cs.date||'|'||min(cs.start_time)||'|'||max(cs.end_time)||'|'||
     coalesce(string_agg(DISTINCT i.name, ',') FILTER (WHERE left(a.qualification_id::text,8) IN
@@ -86,13 +95,13 @@ SELECT string_agg(line, E'\n' ORDER BY ord, line) AS payload FROM ln;
 
 | 줄 | 의미 |
 |---|---|
-| `C\|course_id(full)\|기업명\|교육명\|status\|장소\|교안URL\|담당자명\|직책\|이메일` | 진행 대상 교육 (`setup`·`operation`) |
+| `C\|course_id(full)\|기업명\|교육명\|status\|장소\|교안URL\|담당자명\|직책\|이메일\|초대이메일목록` | 진행 대상 교육 (`setup`·`operation`). 마지막 필드는 그 교육에 배정된 강사·기술튜터 전원의 이메일(중복 제거, 쉼표 구분)이며 웹앱의 "노션 강사 초대" 버튼이 그대로 클립보드에 복사할 때 쓴다 |
 | `S\|course_id 앞8자리\|YYYY-MM-DD\|start\|end\|강사,강사\|튜터,튜터` | **일자 1개 = 세션 1개** (회차 아님) |
 | `A\|course_id 앞8자리` | 담당자 소유이나 보관 대상 (`tax_invoice`·`closed`·`stopped`) |
 
 `|`로 구분되므로 값에 `|`가 들어가면 파싱이 깨진다. 스크립트가 형식 오류를 감지하면 중단한다.
 
-교안·강사·튜터 정보를 다른 스킬에서 쓰려고 여기서 추가 쿼리를 붙이지 말 것 — payload가 커지면 그만큼 토큰이 든다.
+교안·강사·튜터 이메일 외의 정보를 다른 스킬에서 쓰려고 여기서 추가 쿼리를 붙이지 말 것 — payload가 커지면 그만큼 토큰이 든다.
 
 ---
 
@@ -112,7 +121,7 @@ node scripts/sync-ax-hub.js "송찬호" "data/.sync_payload_송찬호.txt"
 스크립트가 수행하는 일 (구현은 `scripts/sync-ax-hub.js` 참조):
 
 - **기준 로드**: Supabase `user_states`에서 현재 state를 GET. `updated_at`을 기준 시각으로 잡고 로컬 파일은 `.bak`으로 백업. Supabase에 데이터가 없으면 로컬 `state.json`을 기준으로 쓴다.
-- **사실 정보 갱신**: `name`·`trainingName`·`instructorName`·`tutorName`·`sessions`·`startAt`·`endAt`·`workbookUrl`·`trainingStatus`·`archived`
+- **사실 정보 갱신**: `name`·`trainingName`·`instructorName`·`tutorName`·`sessions`·`startAt`·`endAt`·`workbookUrl`·`trainingStatus`·`archived`·`inviteEmails`(노션 초대용 강사·기술튜터 이메일 배열)
 - **빈 값만 채움**: `location`·`contactName`·`contactPosition`·`contactEmail` — 기존 값이 있으면 유지 (사용자가 웹앱에서 직접 입력한 축약 장소 등을 보존)
 - **업무 내용 보존**: `status`·`memo`·`deadline`·최상위 `notes` 계열은 손대지 않음
 - **신규 추가**: `id` = 현재 최대 id + 1, `ax_hub_course_id` 기록, `status`는 현재 tasks 전부 0
