@@ -1225,8 +1225,8 @@ function renderBody() {
               <button class="archive-btn" onclick="openSlackDM(${c.id})" title="Slack DM방 개설"><i class="ti ti-brand-slack"></i>SlackDM방 개설</button>
               <button class="archive-btn" onclick="openEduOperationShare(${c.id})" title="교육운영채널에 교육 공유"><i class="ti ti-speakerphone"></i>교육운영내용</button>
               <button class="archive-btn" onclick="openTutorInfoShare(${c.id})" title="남은 교육 일자의 강사·튜터 연락처/차량번호 조회"><i class="ti ti-car"></i>튜터정보전달</button>
-              <button class="archive-btn" onclick="openLectureShare(${c.id})" title="노션 교안 초대용 강사·기술튜터 이메일 목록 조회"><i class="ti ti-file-text"></i>노션 강사 초대</button>
-              <button class="archive-btn" onclick="openPadletShare(${c.id})" title="패들렛 초대용 강사·기술튜터 이메일 목록 조회"><i class="ti ti-layout-grid"></i>패들렛 초대</button>
+              <button class="archive-btn" onclick="openLectureShare(${c.id})" title="강사·기술튜터 이메일을 노션 공유창에 붙여넣을 형식으로 복사"><i class="ti ti-file-text"></i>노션 강사 초대</button>
+              <button class="archive-btn" onclick="openPadletShare(${c.id})" title="회차별 강사·기술튜터 이메일을 패들렛 초대창에 붙여넣을 형식으로 복사"><i class="ti ti-layout-grid"></i>패들렛 초대</button>
               <button class="archive-btn" onclick="openTaxInvoiceInquiry(${c.id})" title="세금계산서 발행 문의 메일 초안 작성"><i class="ti ti-receipt-tax"></i>세금계산서발행</button>
               <button class="archive-btn" onclick="openSatisfactionShare(${c.id})" title="만족도조사 결과를 고객사 담당자·담당 주강사에게 전달"><i class="ti ti-mood-smile"></i>만족도결과전달</button>
             </div>
@@ -2141,58 +2141,99 @@ function openTaxInvoiceInquiry(companyId) {
   });
 }
 
+// 회차 구분 없이 강사·기술튜터 이메일을 중복 없이 모은다.
+function collectSessionEmails(c) {
+  const emails = new Set();
+  (c.inviteEmails || []).forEach(e => emails.add(e));
+  (c.sessions || []).forEach(s => {
+    [...(s.instructorEmails || []), ...(s.tutorEmails || [])].forEach(e => emails.add(e));
+  });
+  return [...emails].filter(Boolean);
+}
+
+function copyOrPrompt(text, toastLabel, toastCode, promptMsg) {
+  navigator.clipboard.writeText(text).then(() => {
+    showCopyToast(toastCode, toastLabel);
+  }).catch(() => {
+    prompt(promptMsg, text);
+  });
+}
+
 function openLectureShare(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
-  if (Array.isArray(c.inviteEmails) && c.inviteEmails.length) {
-    const emailList = c.inviteEmails.join(',');
-    navigator.clipboard.writeText(emailList).then(() => {
-      showCopyToast(emailList, `이메일 ${c.inviteEmails.length}건 복사됨 — 노션 공유창에 붙여넣기 하세요`);
-    }).catch(() => {
-      prompt('아래 이메일 목록을 복사해서 노션 공유창에 붙여넣으세요:', emailList);
-    });
+  const emails = collectSessionEmails(c);
+  if (!emails.length) {
+    showCopyToast('', '이메일 정보가 없습니다 — 교육 가져오기로 동기화해 주세요', 'ti-alert-circle');
     return;
   }
-  const parts = ['/lecture-share'];
-  if (c.name) parts.push(`기업명:${c.name}`);
-  if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
-  const cmd = parts.join(' ');
-  navigator.clipboard.writeText(cmd).then(() => {
-    showCopyToast(cmd);
-  }).catch(() => {
-    prompt('아래 명령어를 복사해서 Claude Code에 붙여넣으세요:', cmd);
+  const emailList = emails.join(',');
+  copyOrPrompt(
+    emailList,
+    `이메일 ${emails.length}건 복사됨 — 노션 공유창에 붙여넣기 하세요`,
+    emailList,
+    '아래 이메일 목록을 복사해서 노션 공유창에 붙여넣으세요:'
+  );
+}
+
+// ax-hub 동기화로 받아온 회차 번호(session.round) 기준으로 강사·기술튜터
+// 이메일을 묶는다. round 정보가 없는 옛 데이터는 회차 구분 없이 하나로 묶는다.
+function padletRoundGroups(c) {
+  const groups = new Map();
+  (c.sessions || []).forEach(s => {
+    const dates = (s.dates && s.dates.length) ? s.dates : (s.date ? [s.date] : []);
+    const emails = [...(s.instructorEmails || []), ...(s.tutorEmails || [])];
+    if (!dates.length || !emails.length) return;
+    const key = s.round || '';
+    if (!groups.has(key)) groups.set(key, { dates: [], emails: new Set() });
+    const g = groups.get(key);
+    dates.forEach(d => g.dates.push(d));
+    emails.forEach(e => g.emails.add(e));
   });
+  return [...groups.entries()]
+    .sort((a, b) => (Number(a[0]) || 0) - (Number(b[0]) || 0));
+}
+
+function fmtYYMMDD(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  return `${String(d.getFullYear()).slice(2)}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function openPadletShare(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
-  const sessionBlocks = (c.sessions || [])
-    .map(s => {
-      const dates = (s.dates && s.dates.length) ? s.dates : (s.date ? [s.date] : []);
-      const emails = [...new Set([...(s.instructorEmails || []), ...(s.tutorEmails || [])])];
-      return { dateLabel: dates.join(', '), emails };
-    })
-    .filter(b => b.dateLabel && b.emails.length);
-  if (sessionBlocks.length) {
-    const text = sessionBlocks.map(b => `[${b.dateLabel}]\n${b.emails.join(',')}`).join('\n\n');
-    const totalCount = new Set(sessionBlocks.flatMap(b => b.emails)).size;
-    navigator.clipboard.writeText(text).then(() => {
-      showCopyToast(`${sessionBlocks.length}개 회차 · ${totalCount}명`, '회차별 이메일 복사됨 — 패들렛 초대창에 붙여넣기 하세요');
-    }).catch(() => {
-      prompt('아래 회차별 이메일 목록을 복사해서 패들렛 초대창에 붙여넣으세요:', text);
-    });
+  const groups = padletRoundGroups(c);
+  if (groups.length) {
+    const text = groups.map(([round, g], i) => {
+      const sortedDates = g.dates.slice().sort();
+      const range = sortedDates.length > 1
+        ? `${fmtYYMMDD(sortedDates[0])}~${fmtYYMMDD(sortedDates[sortedDates.length - 1])}`
+        : fmtYYMMDD(sortedDates[0]);
+      const label = round ? `${round}회차` : `${i + 1}회차`;
+      return `${label} (${range})\n${[...g.emails].join('\n')}`;
+    }).join('\n\n');
+    const totalCount = new Set(groups.flatMap(([, g]) => [...g.emails])).size;
+    copyOrPrompt(
+      text,
+      '회차별 이메일 복사됨 — 패들렛 초대창에 붙여넣기 하세요',
+      `${groups.length}개 회차 · ${totalCount}명`,
+      '아래 회차별 이메일 목록을 복사해서 패들렛 초대창에 붙여넣으세요:'
+    );
     return;
   }
-  const parts = ['/padlet-share'];
-  if (c.name) parts.push(`기업명:${c.name}`);
-  if (c.trainingName) parts.push(`교육명:${c.trainingName}`);
-  const cmd = parts.join(' ');
-  navigator.clipboard.writeText(cmd).then(() => {
-    showCopyToast(cmd);
-  }).catch(() => {
-    prompt('아래 명령어를 복사해서 Claude Code에 붙여넣으세요:', cmd);
-  });
+  // 회차·날짜 정보가 없으면 회차 구분 없이 전체 이메일만 복사한다.
+  const emails = collectSessionEmails(c);
+  if (!emails.length) {
+    showCopyToast('', '이메일 정보가 없습니다 — 교육 가져오기로 동기화해 주세요', 'ti-alert-circle');
+    return;
+  }
+  copyOrPrompt(
+    emails.join('\n'),
+    `이메일 ${emails.length}건 복사됨 — 패들렛 초대창에 붙여넣기 하세요`,
+    `${emails.length}명`,
+    '아래 이메일 목록을 복사해서 패들렛 초대창에 붙여넣으세요:'
+  );
 }
 
 function copySyncCommand() {
@@ -2390,7 +2431,7 @@ function openSatisfactionShare(companyId) {
   });
 }
 
-function showCopyToast(cmd, label) {
+function showCopyToast(cmd, label, icon) {
   let toast = document.getElementById('copy-toast');
   if (!toast) {
     toast = document.createElement('div');
@@ -2399,7 +2440,8 @@ function showCopyToast(cmd, label) {
     document.body.appendChild(toast);
   }
   const prefix = label || '복사됨 — Claude Code에 붙여넣기 하세요';
-  toast.innerHTML = `<i class="ti ti-clipboard-check"></i>${escHtml(prefix)} <code>${escHtml(cmd)}</code>`;
+  const code = cmd ? ` <code>${escHtml(cmd)}</code>` : '';
+  toast.innerHTML = `<i class="ti ${escHtml(icon || 'ti-clipboard-check')}"></i>${escHtml(prefix)}${code}`;
   toast.classList.add('visible');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);

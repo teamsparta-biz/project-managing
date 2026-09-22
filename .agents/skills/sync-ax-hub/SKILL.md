@@ -11,7 +11,7 @@ description: "ax-hub에서 담당자 이름 기준으로 교육 목록을 조회
 > **칸반보드에 사용자가 입력한 업무 내용은 어떤 경우에도 수정·초기화·삭제하지 않는다.**
 > - 보존: 각 교육의 `status`(체크박스)·`memo`·`deadline`, 최상위 `notes`·`notesUpdated`·`completedNotes`·`completedNotesUpdated`
 > - 병합 기준은 **항상 Supabase 현재 상태**(=현재 칸반보드). 로컬 파일 기준으로 덮어쓰지 않는다.
-> - 동기화는 **항목을 삭제하지 않는다.**
+> - 동기화는 **항목을 삭제하지 않는다.** 단, ax-hub에서 상태가 `stopped`(중단)인 항목은 예외적으로 삭제한다 — 취소된 교육이 칸반보드에 "교육완료"로 잘못 남는 것을 막기 위함.
 > - 이 규칙이 다른 모든 지시보다 우선한다.
 >
 > 위 규칙은 `scripts/sync-ax-hub.js`에 구현되어 있다. **병합을 직접 하지 말고 스크립트를 쓸 것.**
@@ -72,7 +72,7 @@ WITH me AS (
          coalesce(act.cp,'')||'|'||coalesce(act.ce,'')||'|'||coalesce(em.emails,'') AS line
   FROM act LEFT JOIN wb ON wb.course_id = act.id LEFT JOIN em ON em.course_id = act.id
   UNION ALL
-  SELECT 2, 'S|'||left(cr.course_id::text,8)||'|'||cs.date||'|'||min(cs.start_time)||'|'||max(cs.end_time)||'|'||
+  SELECT 2, 'S|'||left(cr.course_id::text,8)||'|'||cr.round_number||'|'||cs.date||'|'||min(cs.start_time)||'|'||max(cs.end_time)||'|'||
     coalesce(string_agg(DISTINCT i.name, ',') FILTER (WHERE left(a.qualification_id::text,8) IN
       ('a7a605e9','888ee72c','07ecdab5','e39eeef7','ecdd7d85','7db139f7','2647f764')), '')||'|'||
     coalesce(string_agg(DISTINCT i.name, ',') FILTER (WHERE left(a.qualification_id::text,8) IN
@@ -86,9 +86,11 @@ WITH me AS (
   LEFT JOIN assignments a ON a.course_session_id = cs.id
   LEFT JOIN instructors i ON a.instructor_id = i.id
   WHERE cr.course_id IN (SELECT id FROM act)
-  GROUP BY cr.course_id, cs.date
+  GROUP BY cr.course_id, cr.round_number, cs.date
   UNION ALL
-  SELECT 3, 'A|'||left(id::text,8) FROM own WHERE status NOT IN ('setup','operation')
+  SELECT 3, 'A|'||left(id::text,8) FROM own WHERE status IN ('tax_invoice','closed')
+  UNION ALL
+  SELECT 4, 'X|'||left(id::text,8) FROM own WHERE status = 'stopped'
 )
 SELECT string_agg(line, E'\n' ORDER BY ord, line) AS payload FROM ln;
 ```
@@ -100,8 +102,9 @@ SELECT string_agg(line, E'\n' ORDER BY ord, line) AS payload FROM ln;
 | 줄 | 의미 |
 |---|---|
 | `C\|course_id(full)\|기업명\|교육명\|status\|장소\|교안URL\|담당자명\|직책\|이메일\|초대이메일목록` | 진행 대상 교육 (`setup`·`operation`). 마지막 필드는 그 교육에 배정된 강사·기술튜터 전원의 이메일(중복 제거, 쉼표 구분)이며 웹앱의 "노션 강사 초대" 버튼이 그대로 클립보드에 복사할 때 쓴다 |
-| `S\|course_id 앞8자리\|YYYY-MM-DD\|start\|end\|강사,강사\|튜터,튜터\|강사이름:이메일,...\|튜터이름:이메일,...` | **일자 1개 = 세션 1개** (회차 아님). 마지막 2개 필드는 "패들렛 초대" 버튼이 회차(일자)별로 클립보드에 복사할 때 쓴다 |
-| `A\|course_id 앞8자리` | 담당자 소유이나 보관 대상 (`tax_invoice`·`closed`·`stopped`) |
+| `S\|course_id 앞8자리\|round_number\|YYYY-MM-DD\|start\|end\|강사,강사\|튜터,튜터\|강사이름:이메일,...\|튜터이름:이메일,...` | **일자 1개 = 세션 1개** (회차 아님). `round_number`는 그 날짜가 속한 ax-hub 회차 번호로, "패들렛 초대" 버튼이 회차 단위로 이메일을 묶어 클립보드에 복사할 때 쓴다 (칸반보드 자체는 여전히 일자별 보기) |
+| `A\|course_id 앞8자리` | 담당자 소유이나 보관 대상 (`tax_invoice`·`closed`) — `archived=true`로 표시 |
+| `X\|course_id 앞8자리` | 담당자 소유이나 **중단**(`stopped`) — 로컬에 있으면 삭제, 신규 생성도 안 함 |
 
 `|`로 구분되므로 값에 `|`가 들어가면 파싱이 깨진다. 스크립트가 형식 오류를 감지하면 중단한다.
 
@@ -130,6 +133,7 @@ node scripts/sync-ax-hub.js "송찬호" "data/.sync_payload_송찬호.txt"
 - **업무 내용 보존**: `status`·`memo`·`deadline`·최상위 `notes` 계열은 손대지 않음
 - **신규 추가**: `id` = 현재 최대 id + 1, `ax_hub_course_id` 기록, `status`는 현재 tasks 전부 0
 - **보관 처리**: `A` 줄에 해당하는 항목은 `archived=true`만 설정하고 나머지 필드는 건드리지 않음
+- **중단 삭제**: `X` 줄에 해당하는 항목(로컬에 이미 있는 경우)은 companies 배열에서 완전히 제거. `act`(=`C`/`S` 줄)에는 원래부터 `stopped`가 없으므로 신규로 새로 생기지도 않음
 - **`ax_hub_course_id` 없는 항목**: 사용자가 수동 추가한 것 → 어떤 필드도 건드리지 않음
 - **담당자 외 항목**: 삭제하지 않고 "확인 필요"로 목록만 보고
 - **동시편집 감지**: POST 직전 `updated_at`을 재확인. 달라졌으면 POST를 중단하고 exit 2 → **다시 실행**하면 최신 상태 위에 재병합된다.
@@ -149,6 +153,7 @@ node scripts/sync-ax-hub.js "송찬호" "data/.sync_payload_송찬호.txt"
 ✅ ax-hub 동기화 완료 — {OWNER_NAME} 담당
 
 신규 추가: N건 / 정보 갱신: N건 / 변경 없음: N건
+중단(stopped)으로 삭제: N건
 확인 필요(다른 담당자로 보임): N건  ← 삭제하지 않음, 목록만 안내
 
 브라우저에서 F5를 누르면 업데이트된 내용을 확인할 수 있습니다.

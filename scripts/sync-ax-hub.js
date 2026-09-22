@@ -7,8 +7,9 @@
  *
  * payload 파일 형식 (줄 단위, `|` 구분 — /sync-ax-hub 스킬의 단일 SQL이 생성):
  *   C|<course_id(full uuid)>|<기업명>|<교육명>|<status>|<장소>|<교안URL>|<담당자명>|<직책>|<이메일>|<초대이메일1,초대이메일2,...>
- *   S|<course_id 앞8자리>|<YYYY-MM-DD>|<start_time>|<end_time>|<강사,강사>|<튜터,튜터>|<강사이름:이메일,...>|<튜터이름:이메일,...>
- *   A|<course_id 앞8자리>        ← 담당자 소유이지만 보관 대상(tax_invoice/closed/stopped)
+ *   S|<course_id 앞8자리>|<round_number>|<YYYY-MM-DD>|<start_time>|<end_time>|<강사,강사>|<튜터,튜터>|<강사이름:이메일,...>|<튜터이름:이메일,...>
+ *   A|<course_id 앞8자리>        ← 담당자 소유이지만 보관 대상(tax_invoice/closed) — archived=true
+ *   X|<course_id 앞8자리>        ← 담당자 소유이지만 중단(stopped) — 로컬에 있으면 완전히 삭제
  *
  * 절대 규칙: 사용자가 칸반보드에 입력한 업무 내용(status·memo·deadline·notes 계열)은
  * 어떤 경우에도 수정·초기화·삭제하지 않는다. 항목 삭제도 하지 않는다.
@@ -78,7 +79,8 @@ function canon(v) {
 function parsePayload(text) {
   const courses = new Map();   // full course_id → meta
   const sessions = new Map();  // prefix8 → rows[]
-  const archivedOwned = new Set(); // prefix8
+  const archivedOwned = new Set(); // prefix8 — tax_invoice/closed
+  const stoppedOwned = new Set();  // prefix8 — stopped (완전 삭제 대상)
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
@@ -94,18 +96,20 @@ function parsePayload(text) {
       const key = f[1];
       if (!sessions.has(key)) sessions.set(key, []);
       sessions.get(key).push({
-        date: f[2], st: f[3], et: f[4], ins: f[5] || '', tut: f[6] || '',
-        insPairs: f[7] || '', tutPairs: f[8] || '',
+        round: f[2] || '', date: f[3], st: f[4], et: f[5], ins: f[6] || '', tut: f[7] || '',
+        insPairs: f[8] || '', tutPairs: f[9] || '',
       });
     } else if (f[0] === 'A') {
       archivedOwned.add(f[1]);
+    } else if (f[0] === 'X') {
+      stoppedOwned.add(f[1]);
     } else {
       throw new Error(`payload 형식 오류 (알 수 없는 줄): ${line.slice(0, 60)}`);
     }
   }
   if (courses.size === 0) throw new Error('payload에 C(교육) 줄이 없음 — 조회 결과를 확인하세요');
   for (const rows of sessions.values()) rows.sort((a, b) => a.date.localeCompare(b.date));
-  return { courses, sessions, archivedOwned };
+  return { courses, sessions, archivedOwned, stoppedOwned };
 }
 
 async function sbGet(env, select) {
@@ -141,7 +145,7 @@ async function main() {
   for (const co of state.companies) if (co.ax_hub_course_id) byCourseId.set(co.ax_hub_course_id, co);
   let maxId = state.companies.reduce((m, c) => Math.max(m, Number(c.id) || 0), 0);
 
-  const added = [], updated = [], unchanged = [], archivedFixed = [], suspect = [];
+  const added = [], updated = [], unchanged = [], archivedFixed = [], removedStopped = [], suspect = [];
 
   for (const [cid, meta] of payload.courses) {
     const rowsFor = payload.sessions.get(cid.slice(0, 8)) || [];
@@ -162,6 +166,7 @@ async function main() {
     co.sessions = rowsFor.length
       ? rowsFor.map((r, i) => ({
           id: `session_${co.id}_${i + 1}`,
+          round: r.round || '',
           dates: [r.date],
           startTime: hhmm(r.st),
           endTime: hhmm(r.et),
@@ -170,7 +175,7 @@ async function main() {
           instructorEmails: pairEmails(r.insPairs),
           tutorEmails: pairEmails(r.tutPairs),
         }))
-      : [{ id: `session_${co.id}_1`, dates: [], startTime: '', endTime: '', instructorName: '', tutorName: '', instructorEmails: [], tutorEmails: [] }];
+      : [{ id: `session_${co.id}_1`, round: '', dates: [], startTime: '', endTime: '', instructorName: '', tutorName: '', instructorEmails: [], tutorEmails: [] }];
     co.name = meta.client;
     co.trainingName = meta.training;
     co.instructorName = allIns.join(', ');
@@ -194,7 +199,21 @@ async function main() {
     else unchanged.push(label);
   }
 
-  // 보관 대상(tax_invoice/closed/stopped): archived만 true로, 나머지는 손대지 않음
+  // 중단(stopped) 교육: 로컬에 있으면 완전히 삭제 (act에는 원래부터 없으므로 신규 생성도 안 됨)
+  if (payload.stoppedOwned.size) {
+    for (const co of state.companies) {
+      if (!co.ax_hub_course_id) continue;
+      if (payload.stoppedOwned.has(co.ax_hub_course_id.slice(0, 8))) {
+        removedStopped.push(`${co.name} | ${co.trainingName}`);
+      }
+    }
+    if (removedStopped.length) {
+      state.companies = state.companies.filter(co =>
+        !co.ax_hub_course_id || !payload.stoppedOwned.has(co.ax_hub_course_id.slice(0, 8)));
+    }
+  }
+
+  // 보관 대상(tax_invoice/closed): archived만 true로, 나머지는 손대지 않음
   // 담당자 외 교육: 삭제하지 않고 보고만
   for (const co of state.companies) {
     if (!co.ax_hub_course_id) continue; // 수동 추가 항목 — 어떤 필드도 건드리지 않음
@@ -252,6 +271,7 @@ async function main() {
       sec('정보 갱신', updated),
       `변경 없음: ${unchanged.length}건`,
       sec('보관 처리(archived=true)', archivedFixed),
+      sec('중단(stopped)으로 삭제', removedStopped),
       sec('확인 필요(다른 담당자로 보임 — 삭제하지 않음)', suspect),
       `총 companies: ${state.companies.length}건`,
     ].join('\n');
