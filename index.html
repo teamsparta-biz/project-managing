@@ -359,6 +359,16 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .modal-actions button.primary.danger:hover { opacity: 0.88; }
 .modal-actions button.primary:disabled { opacity: 0.4; cursor: default; }
 
+.padlet-round-list { display: flex; flex-direction: column; gap: 10px; max-height: 56vh; overflow-y: auto; margin-bottom: 18px; }
+.padlet-round { border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-secondary); padding: 10px 12px; }
+.padlet-round-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.padlet-round-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.padlet-round-range { font-size: 12px; color: var(--text-tertiary); margin-left: 6px; font-weight: 400; }
+.padlet-round-copy { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; font-size: 12px; font-family: var(--font-sans); border: 1px solid var(--border-secondary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary); cursor: pointer; white-space: nowrap; }
+.padlet-round-copy:hover { background: var(--bg-tertiary, var(--bg-secondary)); }
+.padlet-round-copy.copied { border-color: var(--color-section-before); color: var(--color-section-before); }
+.padlet-round-emails { font-size: 12px; line-height: 1.7; color: var(--text-secondary); word-break: break-all; }
+
 .owner-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .owner-chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px 8px 14px; font-size: 13px; font-family: var(--font-sans); border: 1px solid var(--border-secondary); border-radius: 999px; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; transition: all 0.15s; }
 .owner-chip:hover { border-color: var(--color-section-before); color: var(--color-section-before); background: color-mix(in srgb, var(--color-section-before) 8%, transparent); }
@@ -1226,7 +1236,7 @@ function renderBody() {
               <button class="archive-btn" onclick="openEduOperationShare(${c.id})" title="교육운영채널에 교육 공유"><i class="ti ti-speakerphone"></i>교육운영내용</button>
               <button class="archive-btn" onclick="openTutorInfoShare(${c.id})" title="남은 교육 일자의 강사·튜터 연락처/차량번호 조회"><i class="ti ti-car"></i>튜터정보전달</button>
               <button class="archive-btn" onclick="openLectureShare(${c.id})" title="강사·기술튜터 이메일을 노션 공유창에 붙여넣을 형식으로 복사"><i class="ti ti-file-text"></i>노션 강사 초대</button>
-              <button class="archive-btn" onclick="openPadletShare(${c.id})" title="회차별 강사·기술튜터 이메일을 패들렛 초대창에 붙여넣을 형식으로 복사"><i class="ti ti-layout-grid"></i>패들렛 초대</button>
+              <button class="archive-btn" onclick="openPadletShare(${c.id})" title="회차별 강사·기술튜터 이메일을 회차 단위로 하나씩 복사"><i class="ti ti-layout-grid"></i>패들렛 초대</button>
               <button class="archive-btn" onclick="openTaxInvoiceInquiry(${c.id})" title="세금계산서 발행 문의 메일 초안 작성"><i class="ti ti-receipt-tax"></i>세금계산서발행</button>
               <button class="archive-btn" onclick="openSatisfactionShare(${c.id})" title="만족도조사 결과를 고객사 담당자·담당 주강사에게 전달"><i class="ti ti-mood-smile"></i>만족도결과전달</button>
             </div>
@@ -2200,26 +2210,25 @@ function fmtYYMMDD(dateStr) {
   return `${String(d.getFullYear()).slice(2)}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// 회차별 라벨·기간·이메일을 화면 표시와 복사에 쓸 형태로 정리한다.
+function padletRoundRows(c) {
+  return padletRoundGroups(c).map(([round, g], i) => {
+    const sortedDates = g.dates.slice().sort();
+    const range = sortedDates.length > 1
+      ? `${fmtYYMMDD(sortedDates[0])}~${fmtYYMMDD(sortedDates[sortedDates.length - 1])}`
+      : fmtYYMMDD(sortedDates[0]);
+    return { label: round ? `${round}회차` : `${i + 1}회차`, range, emails: [...g.emails] };
+  });
+}
+
+let padletShareRows = [];
+
 function openPadletShare(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
-  const groups = padletRoundGroups(c);
-  if (groups.length) {
-    const text = groups.map(([round, g], i) => {
-      const sortedDates = g.dates.slice().sort();
-      const range = sortedDates.length > 1
-        ? `${fmtYYMMDD(sortedDates[0])}~${fmtYYMMDD(sortedDates[sortedDates.length - 1])}`
-        : fmtYYMMDD(sortedDates[0]);
-      const label = round ? `${round}회차` : `${i + 1}회차`;
-      return `${label} (${range})\n${[...g.emails].join('\n')}`;
-    }).join('\n\n');
-    const totalCount = new Set(groups.flatMap(([, g]) => [...g.emails])).size;
-    copyOrPrompt(
-      text,
-      '회차별 이메일 복사됨 — 패들렛 초대창에 붙여넣기 하세요',
-      `${groups.length}개 회차 · ${totalCount}명`,
-      '아래 회차별 이메일 목록을 복사해서 패들렛 초대창에 붙여넣으세요:'
-    );
+  const rows = padletRoundRows(c);
+  if (rows.length) {
+    openPadletRoundModal(c, rows);
     return;
   }
   // 회차·날짜 정보가 없으면 회차 구분 없이 전체 이메일만 복사한다.
@@ -2234,6 +2243,49 @@ function openPadletShare(companyId) {
     `${emails.length}명`,
     '아래 이메일 목록을 복사해서 패들렛 초대창에 붙여넣으세요:'
   );
+}
+
+function openPadletRoundModal(c, rows) {
+  padletShareRows = rows;
+  const title = [c.name, c.trainingName].filter(Boolean).join(' · ');
+  const list = rows.map((r, i) => `
+    <div class="padlet-round">
+      <div class="padlet-round-head">
+        <span class="padlet-round-title">${escHtml(r.label)}<span class="padlet-round-range">${escHtml(r.range)}</span></span>
+        <button class="padlet-round-copy" onclick="copyPadletRound(${i}, this)"><i class="ti ti-copy"></i>${r.emails.length}명 복사</button>
+      </div>
+      <div class="padlet-round-emails">${r.emails.map(escHtml).join('<br>')}</div>
+    </div>
+  `).join('');
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h3>패들렛 초대 — 회차별 이메일${title ? `<span class="padlet-round-range">${escHtml(title)}</span>` : ''}</h3>
+        <div class="padlet-round-list">${list}</div>
+        <div class="modal-actions"><button onclick="closeModal()">닫기</button></div>
+      </div>
+    </div>
+  `;
+}
+
+function copyPadletRound(index, btn) {
+  const row = padletShareRows[index];
+  if (!row) return;
+  const text = row.emails.join('\n');
+  const label = `${row.label} 이메일 ${row.emails.length}건 복사됨 — 패들렛 초대창에 붙여넣기 하세요`;
+  navigator.clipboard.writeText(text).then(() => {
+    showCopyToast('', label);
+    if (!btn) return;
+    const original = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="ti ti-check"></i>복사됨';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = original;
+    }, 1500);
+  }).catch(() => {
+    prompt(`${row.label} 이메일을 복사해서 패들렛 초대창에 붙여넣으세요:`, text);
+  });
 }
 
 function copySyncCommand() {

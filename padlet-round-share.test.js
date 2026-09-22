@@ -8,7 +8,7 @@ const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 
 // index.html 안의 패들렛 회차 그룹핑 함수만 떼어내 실행한다.
 function loadPadletHelpers() {
-  const src = ['padletRoundGroups', 'fmtYYMMDD']
+  const src = ['padletRoundGroups', 'fmtYYMMDD', 'padletRoundRows']
     .map(name => {
       const m = html.match(new RegExp(`\\nfunction ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}\\n`));
       assert.ok(m, `${name}() 함수를 index.html에서 찾지 못했습니다`);
@@ -54,6 +54,22 @@ test('이메일이나 날짜가 없는 회차는 그룹에서 제외된다', () 
     ],
   };
   assert.deepEqual(plain(padletRoundGroups(c)), []);
+});
+
+test('회차별 행은 라벨·날짜범위·이메일을 따로 담아 회차 단위 복사에 쓴다', () => {
+  const { padletRoundRows } = loadPadletHelpers();
+  const c = {
+    sessions: [
+      { round: '1', dates: ['2026-06-11'], instructorEmails: ['a@x.com'], tutorEmails: ['b@x.com'] },
+      { round: '1', dates: ['2026-06-12'], instructorEmails: ['a@x.com'], tutorEmails: [] },
+      { round: '2', dates: ['2026-06-18'], instructorEmails: ['c@x.com'], tutorEmails: [] },
+    ],
+  };
+  const rows = plain(padletRoundRows(c));
+  assert.deepEqual(rows, [
+    { label: '1회차', range: '26.06.11~26.06.12', emails: ['a@x.com', 'b@x.com'] },
+    { label: '2회차', range: '26.06.18', emails: ['c@x.com'] },
+  ]);
 });
 
 test('round 정보가 없는 옛 데이터는 하나의 그룹으로 합쳐진다', () => {
