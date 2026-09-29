@@ -234,6 +234,45 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .memo-overview-list { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
 .memo-overview-list li { font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
 
+/* 내 할 일 패널 */
+#todo-toggle.has-over { border-color: color-mix(in srgb, var(--color-d-over) 45%, transparent); color: var(--color-d-over); }
+#todo-toggle.has-over .memo-overview-badge { background: var(--color-d-over); }
+.todo-panel { margin-bottom: 16px; border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-secondary); overflow: hidden; }
+.todo-input-wrap { padding: 12px 16px 10px; border-bottom: 1px solid var(--border-tertiary); }
+.todo-input { width: 100%; box-sizing: border-box; padding: 9px 12px; font-size: 13px; font-family: var(--font-sans); border: 1px solid var(--border-secondary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary); outline: none; }
+.todo-input:focus { border-color: var(--border-primary); }
+.todo-parse-preview { margin-top: 7px; min-height: 18px; font-size: 12px; color: var(--text-tertiary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.todo-parse-preview i { font-size: 13px; }
+.todo-body { max-height: 440px; overflow-y: auto; padding: 4px 0 8px; }
+.todo-group-title { padding: 10px 16px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; color: var(--text-tertiary); display: flex; align-items: center; gap: 6px; }
+.todo-group-title.over { color: var(--color-d-over); }
+.todo-group-title.today { color: var(--color-d-dday); }
+.todo-group-title .todo-group-count { font-weight: 500; }
+.todo-item { display: flex; align-items: center; gap: 10px; padding: 7px 16px; font-size: 13px; }
+.todo-item:hover { background: var(--bg-primary); }
+.todo-check { width: 17px; height: 17px; flex-shrink: 0; border: 1.5px solid var(--border-primary); border-radius: 5px; background: var(--bg-primary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: #fff; }
+.todo-check:hover { border-color: var(--color-status-done); }
+.todo-item.done .todo-check { background: var(--color-status-done); border-color: var(--color-status-done); }
+.todo-check i { font-size: 12px; }
+.todo-title { flex: 1; min-width: 0; color: var(--text-primary); line-height: 1.5; word-break: break-word; cursor: text; }
+.todo-item.done .todo-title { color: var(--text-tertiary); text-decoration: line-through; }
+.todo-company { flex-shrink: 0; font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border-secondary); background: var(--bg-primary); color: var(--text-secondary); cursor: pointer; font-family: var(--font-sans); }
+.todo-company:hover { color: var(--text-primary); border-color: var(--border-primary); }
+.todo-company.plain { cursor: default; }
+.todo-due { flex-shrink: 0; font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.todo-item .d-tag { font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 999px; background: var(--bg-primary); color: var(--text-tertiary); flex-shrink: 0; border: 1px solid var(--border-tertiary); }
+.todo-item .d-tag.soon { background: color-mix(in srgb, var(--color-d-soon) 15%, transparent); color: var(--color-d-soon); border-color: color-mix(in srgb, var(--color-d-soon) 30%, transparent); }
+.todo-item .d-tag.over { background: color-mix(in srgb, var(--color-d-over) 15%, transparent); color: var(--color-d-over); border-color: color-mix(in srgb, var(--color-d-over) 30%, transparent); }
+.todo-item .d-tag.dday { background: color-mix(in srgb, var(--color-d-dday) 18%, transparent); color: var(--color-d-dday); border-color: color-mix(in srgb, var(--color-d-dday) 35%, transparent); }
+.todo-date-input { flex-shrink: 0; width: 22px; border: none; background: transparent; color: var(--text-tertiary); font-size: 12px; padding: 0; cursor: pointer; color-scheme: light dark; opacity: 0; transition: opacity 0.15s; }
+.todo-item:hover .todo-date-input, .todo-date-input:focus { opacity: 1; }
+.todo-del { flex-shrink: 0; background: none; border: none; padding: 2px; cursor: pointer; color: var(--text-tertiary); display: inline-flex; opacity: 0; transition: opacity 0.15s; }
+.todo-item:hover .todo-del, .todo-del:focus-visible { opacity: 1; }
+.todo-del:hover { color: var(--color-d-over); }
+.todo-done-toggle { margin: 6px 16px 0; background: none; border: none; padding: 4px 0; font-family: var(--font-sans); font-size: 12px; color: var(--text-tertiary); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.todo-done-toggle:hover { color: var(--text-primary); }
+@media (max-width: 560px) { .todo-item { flex-wrap: wrap; } .todo-title { flex-basis: calc(100% - 30px); } .todo-del, .todo-date-input { opacity: 1; } }
+
 .period-row { margin-top: 8px; padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-tertiary); }
 .period-label { font-size: 11px; color: var(--text-tertiary); font-weight: 500; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 6px; letter-spacing: 0.2px; }
 .period-label i { font-size: 12px; }
@@ -478,6 +517,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
     <button class="primary" onclick="addCompany()"><i class="ti ti-plus"></i> 기업 추가</button>
     <button onclick="openTaskModal()"><i class="ti ti-list-check"></i> 업무 추가</button>
     <button id="memo-overview-toggle" onclick="toggleMemoOverview()" title="교육별 업무 특이사항을 한 화면에 모아보기"><i class="ti ti-notes"></i> 특이사항 모아보기<span class="memo-overview-badge" id="memo-overview-count" style="display:none;">0</span></button>
+    <button id="todo-toggle" onclick="toggleTodoPanel()" title="내가 해야 할 일을 마감일 순으로 보기"><i class="ti ti-checkbox"></i> 내 할 일<span class="memo-overview-badge" id="todo-count" style="display:none;">0</span></button>
     <div class="theme-toggle" role="group" aria-label="테마 선택">
       <button class="theme-btn" data-theme-value="light" onclick="setTheme('light')" title="라이트 모드" aria-label="라이트 모드"><i class="ti ti-sun"></i></button>
       <button class="theme-btn" data-theme-value="auto" onclick="setTheme('auto')" title="시스템 설정 따름" aria-label="시스템 설정 따름"><i class="ti ti-device-desktop"></i></button>
@@ -491,6 +531,18 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
     <button class="tab" id="tab-archived" onclick="switchTab('archived')"><i class="ti ti-archive"></i>교육 완료<span class="count" id="count-archived">0</span></button>
     <button class="tab" id="tab-completed" onclick="switchTab('completed')"><i class="ti ti-circle-check"></i>완료<span class="count" id="count-completed">0</span></button>
     <button class="tab" id="tab-overview" onclick="switchTab('overview')"><i class="ti ti-layout-grid"></i>전체보기<span class="count" id="count-overview">0</span></button>
+  </div>
+
+  <div id="todo-panel" class="todo-panel" style="display:none;">
+    <div class="memo-overview-head">
+      <span><i class="ti ti-checkbox"></i>내 할 일<span class="memo-overview-sub" id="todo-sub"></span></span>
+      <button class="memo-overview-close" onclick="toggleTodoPanel()" title="닫기"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="todo-input-wrap">
+      <input type="text" id="todo-input" class="todo-input" placeholder="할 일을 적고 Enter — 예) 삼성전자 TSP 일정확인 10월 1일까지" autocomplete="off" />
+      <div class="todo-parse-preview" id="todo-parse-preview"></div>
+    </div>
+    <div class="todo-body" id="todo-body"></div>
   </div>
 
   <div id="memo-overview-panel" class="memo-overview-panel" style="display:none;"></div>
@@ -696,6 +748,7 @@ function showUserSelector() {
   openUserSelectorModal(async () => {
     document.getElementById('user-badge-name').textContent = getCurrentOwner();
     const loaded = await loadState();
+    todoKnownIds.clear();
     state = loaded;
     if (typeof state.notes !== 'string') state.notes = '';
     if (state.notesUpdated === undefined) state.notesUpdated = null;
@@ -727,7 +780,8 @@ function DEFAULT_STATE() {
     notes: '',
     notesUpdated: null,
     completedNotes: '',
-    completedNotesUpdated: null
+    completedNotesUpdated: null,
+    todos: []
   };
 }
 
@@ -1438,6 +1492,272 @@ function jumpToMemo(id) {
   }, 120);
 }
 
+// ─────────────────────────────────────────────────────────────
+// 내 할 일 (state.todos — 담당자별 저장, Claude는 scripts/todo-add.js로 추가)
+// ─────────────────────────────────────────────────────────────
+let todoPanelOpen = (() => { try { return localStorage.getItem('training_todo_open') !== '0'; } catch (e) { return true; } })();
+let todoShowDone = false;
+const todoKnownIds = new Set();
+
+const TODO_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+function todoYmd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// "삼성전자 TSP 일정확인 10월 1일까지" → { title, company, due }
+// today: 'YYYY-MM-DD', companyNames: 매칭 후보 기업명 목록
+function parseTodoInput(text, companyNames, today) {
+  let rest = String(text || '').trim();
+  const base = new Date(today + 'T00:00:00');
+  let due = '';
+
+  const pick = (y, m, d) => {
+    const dt = new Date(y, m - 1, d);
+    if (dt.getMonth() !== m - 1) return '';
+    return todoYmd(dt);
+  };
+  // 연도 없는 날짜: 이미 한 달 넘게 지난 날짜면 내년으로 본다
+  const pickNoYear = (m, d) => {
+    let v = pick(base.getFullYear(), m, d);
+    if (v && (new Date(v + 'T00:00:00') - base) < -30 * 86400000) v = pick(base.getFullYear() + 1, m, d);
+    return v;
+  };
+  const addDays = n => { const d = new Date(base); d.setDate(d.getDate() + n); return todoYmd(d); };
+
+  const rules = [
+    [/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/, m => pick(+m[1], +m[2], +m[3])],
+    [/(\d{1,2})\s*월\s*(\d{1,2})\s*일/, m => pickNoYear(+m[1], +m[2])],
+    [/(?<![\d.])(\d{1,2})[/.](\d{1,2})(?![\d.])/, m => pickNoYear(+m[1], +m[2])],
+    [/오늘/, () => addDays(0)],
+    [/내일/, () => addDays(1)],
+    [/모레/, () => addDays(2)],
+    [/(다음\s*주|담주|이번\s*주)?\s*([일월화수목금토])요일/, m => {
+      const target = TODO_WEEKDAYS.indexOf(m[2]);
+      const day = base.getDay();
+      if (m[1] && /다음|담/.test(m[1])) {
+        // 다음 주 = 다음 월요일부터 시작하는 주 (월~일)
+        const toNextMonday = ((8 - day) % 7) || 7;
+        return addDays(toNextMonday + (target + 6) % 7);
+      }
+      return addDays((target - day + 7) % 7);
+    }],
+  ];
+  for (const [re, fn] of rules) {
+    const m = rest.match(re);
+    if (!m) continue;
+    const v = fn(m);
+    if (!v) continue;
+    due = v;
+    rest = (rest.slice(0, m.index) + ' ' + rest.slice(m.index + m[0].length));
+    break;
+  }
+  if (due) rest = rest.replace(/\s*(?:전\s*)?(?:까지|마감|중으로|중)(?=\s|$|[,.!])/, ' ');
+
+  let company = '';
+  const names = [...new Set((companyNames || []).filter(Boolean))].sort((a, b) => b.length - a.length);
+  for (const n of names) {
+    const i = rest.indexOf(n);
+    if (i === -1) continue;
+    company = n;
+    rest = rest.slice(0, i) + ' ' + rest.slice(i + n.length);
+    break;
+  }
+  const title = rest.replace(/\s+/g, ' ').replace(/^[\s,:\-·]+|[\s,:\-·]+$/g, '').trim();
+  return { title: title || (company ? company : ''), company, due };
+}
+
+function todoCompanyNames() {
+  return (state.companies || []).map(c => c.name);
+}
+
+function newTodoId() {
+  return 'todo_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+}
+
+function addTodoFromInput() {
+  const input = document.getElementById('todo-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const p = parseTodoInput(text, todoCompanyNames(), todayKey());
+  if (!p.title) return;
+  const co = p.company ? state.companies.find(c => c.name === p.company) : null;
+  const todo = { id: newTodoId(), title: p.title, company: p.company, companyId: co ? co.id : null, due: p.due, done: false, createdAt: new Date().toISOString(), doneAt: null };
+  state.todos.push(todo);
+  todoKnownIds.add(todo.id);
+  input.value = '';
+  renderTodoParsePreview();
+  saveState();
+  renderTodos();
+}
+
+function toggleTodoDone(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  t.doneAt = t.done ? new Date().toISOString() : null;
+  saveState();
+  renderTodos();
+}
+
+function deleteTodo(id) {
+  state.todos = state.todos.filter(t => t.id !== id);
+  saveState();
+  renderTodos();
+}
+
+function setTodoDue(id, value) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  t.due = value || '';
+  saveState();
+  renderTodos();
+}
+
+function editTodoTitle(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  const v = prompt('할 일 수정', t.title);
+  if (v === null || !v.trim()) return;
+  t.title = v.trim();
+  saveState();
+  renderTodos();
+}
+
+function jumpToTodoCompany(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  const co = state.companies.find(c => c.id === t.companyId) || state.companies.find(c => c.name === t.company);
+  if (co) jumpToCompany(co.id);
+}
+
+function todoDiff(due) {
+  if (!due) return null;
+  return Math.round((new Date(due + 'T00:00:00') - new Date(todayKey() + 'T00:00:00')) / 86400000);
+}
+
+function todoDueLabel(due) {
+  const d = new Date(due + 'T00:00:00');
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return `${sameYear ? '' : d.getFullYear() + '. '}${d.getMonth() + 1}/${d.getDate()}(${TODO_WEEKDAYS[d.getDay()]})`;
+}
+
+function todoDTag(due) {
+  const n = todoDiff(due);
+  if (n === null) return '';
+  if (n < 0) return `<span class="d-tag over">D+${-n}</span>`;
+  if (n === 0) return `<span class="d-tag dday">D-DAY</span>`;
+  return `<span class="d-tag${n <= 3 ? ' soon' : ''}">D-${n}</span>`;
+}
+
+function todoItemHtml(t) {
+  const co = t.company ? (state.companies.find(c => c.id === t.companyId) || state.companies.find(c => c.name === t.company)) : null;
+  const companyHtml = t.company
+    ? (co ? `<button type="button" class="todo-company" onclick="jumpToTodoCompany('${t.id}')" title="이 교육으로 이동">${escHtml(t.company)}</button>`
+          : `<span class="todo-company plain">${escHtml(t.company)}</span>`)
+    : '';
+  return `<div class="todo-item${t.done ? ' done' : ''}">
+    <button type="button" class="todo-check" onclick="toggleTodoDone('${t.id}')" aria-label="${t.done ? '완료 취소' : '완료'}" title="${t.done ? '완료 취소' : '완료'}">${t.done ? '<i class="ti ti-check"></i>' : ''}</button>
+    ${companyHtml}
+    <span class="todo-title" ondblclick="editTodoTitle('${t.id}')" title="더블클릭하면 수정">${escHtml(t.title)}</span>
+    ${t.due ? `<span class="todo-due">${todoDueLabel(t.due)}</span>${t.done ? '' : todoDTag(t.due)}` : ''}
+    <input type="date" class="todo-date-input" value="${escAttr(t.due || '')}" onchange="setTodoDue('${t.id}', this.value)" title="마감일 변경" aria-label="마감일 변경" />
+    <button type="button" class="todo-del" onclick="deleteTodo('${t.id}')" title="삭제" aria-label="삭제"><i class="ti ti-x"></i></button>
+  </div>`;
+}
+
+function todoGroups(todos) {
+  const open = todos.filter(t => !t.done).sort((a, b) => {
+    if (!a.due && !b.due) return (a.createdAt || '').localeCompare(b.createdAt || '');
+    if (!a.due) return 1;
+    if (!b.due) return -1;
+    return a.due.localeCompare(b.due);
+  });
+  const groups = [
+    { key: 'over', label: '마감 지남', items: [] },
+    { key: 'today', label: '오늘', items: [] },
+    { key: 'week', label: '7일 이내', items: [] },
+    { key: 'later', label: '이후', items: [] },
+    { key: 'none', label: '마감일 없음', items: [] },
+  ];
+  const byKey = Object.fromEntries(groups.map(g => [g.key, g]));
+  open.forEach(t => {
+    const n = todoDiff(t.due);
+    const k = n === null ? 'none' : n < 0 ? 'over' : n === 0 ? 'today' : n <= 7 ? 'week' : 'later';
+    byKey[k].items.push(t);
+  });
+  const done = todos.filter(t => t.done).sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
+  return { groups: groups.filter(g => g.items.length), open, done };
+}
+
+function renderTodos() {
+  const panel = document.getElementById('todo-panel');
+  if (!panel) return;
+  const todos = Array.isArray(state.todos) ? state.todos : [];
+  todos.forEach(t => todoKnownIds.add(t.id));
+  const { groups, open, done } = todoGroups(todos);
+  const overCount = open.filter(t => { const n = todoDiff(t.due); return n !== null && n < 0; }).length;
+
+  const badge = document.getElementById('todo-count');
+  if (badge) { badge.style.display = open.length ? '' : 'none'; badge.textContent = open.length; }
+  const toggle = document.getElementById('todo-toggle');
+  toggle?.classList.toggle('has-items', open.length > 0 && overCount === 0);
+  toggle?.classList.toggle('has-over', overCount > 0);
+
+  panel.style.display = todoPanelOpen ? '' : 'none';
+  if (!todoPanelOpen) return;
+  document.getElementById('todo-sub').textContent = open.length ? `${open.length}개 남음${overCount ? ` · 마감 지남 ${overCount}` : ''}` : '';
+
+  const body = document.getElementById('todo-body');
+  let html = '';
+  if (!open.length) {
+    html += `<div class="memo-overview-empty"><i class="ti ti-mood-smile" style="font-size:22px; display:block; margin-bottom:8px;"></i>남은 할 일이 없습니다</div>`;
+  }
+  html += groups.map(g => `
+    <div class="todo-group-title ${g.key}">${g.label}<span class="todo-group-count">${g.items.length}</span></div>
+    ${g.items.map(todoItemHtml).join('')}`).join('');
+  if (done.length) {
+    html += `<button type="button" class="todo-done-toggle" onclick="todoShowDone = !todoShowDone; renderTodos();"><i class="ti ti-chevron-${todoShowDone ? 'up' : 'down'}"></i>완료한 일 ${done.length}개 ${todoShowDone ? '숨기기' : '보기'}</button>`;
+    if (todoShowDone) html += done.slice(0, 50).map(todoItemHtml).join('');
+  }
+  body.innerHTML = html;
+}
+
+function renderTodoParsePreview() {
+  const el = document.getElementById('todo-parse-preview');
+  const text = document.getElementById('todo-input')?.value.trim();
+  if (!el) return;
+  if (!text) { el.innerHTML = '<i class="ti ti-info-circle"></i>기업명과 마감일(10월 1일, 10/1, 내일, 금요일 등)을 같이 적으면 자동으로 정리됩니다'; return; }
+  const p = parseTodoInput(text, todoCompanyNames(), todayKey());
+  el.innerHTML = `<i class="ti ti-corner-down-left"></i>
+    ${p.company ? `<span class="todo-company plain">${escHtml(p.company)}</span>` : ''}
+    <span style="color:var(--text-primary);">${escHtml(p.title || '—')}</span>
+    ${p.due ? `<span>· ${todoDueLabel(p.due)}</span>` : '<span>· 마감일 없음</span>'}`;
+}
+
+function toggleTodoPanel() {
+  todoPanelOpen = !todoPanelOpen;
+  try { localStorage.setItem('training_todo_open', todoPanelOpen ? '1' : '0'); } catch (e) {}
+  renderTodos();
+  if (todoPanelOpen) setTimeout(() => document.getElementById('todo-input')?.focus(), 30);
+}
+
+// Claude(scripts/todo-add.js)가 DB에 추가한 할 일을, 탭을 새로고침하지 않아도 가져온다.
+// 이 탭에서 이미 본 id는 건너뛰므로 여기서 지운 항목이 되살아나지 않는다.
+async function pullRemoteTodos() {
+  try {
+    const res = await fetch('/api/state?owner=' + encodeURIComponent(getCurrentOwner()));
+    if (!res.ok) return;
+    const remote = await res.json();
+    const incoming = (remote && Array.isArray(remote.todos) ? remote.todos : []).filter(t => t && t.id && !todoKnownIds.has(t.id));
+    if (!incoming.length) return;
+    incoming.forEach(t => { state.todos.push(t); todoKnownIds.add(t.id); });
+    saveState();
+    renderTodos();
+    showCopyToast('', `할 일 ${incoming.length}개를 불러왔습니다`, 'ti-checkbox');
+  } catch (e) {}
+}
+
 function cleanupCompanyMemo(companyId) {
   const c = state.companies.find(c => c.id === companyId);
   if (!c) return;
@@ -1548,7 +1868,8 @@ function render() {
   autoArchivePastTrainings();
   // 저장을 가장 먼저 예약 — 이후 렌더 단계에서 예외가 나도 칸반보드 선택값(체크 상태 등)이 DB에 반드시 저장되도록.
   saveState();
-  renderHead(); renderBody(); renderCardView(); renderSummary(); renderNotes(); renderMemoOverview(); setupStickyHeader();
+  if (!Array.isArray(state.todos)) state.todos = [];
+  renderHead(); renderBody(); renderCardView(); renderSummary(); renderNotes(); renderMemoOverview(); renderTodos(); setupStickyHeader();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -2518,6 +2839,13 @@ window.addEventListener('scroll', updateScrollToTopVisibility, { passive: true }
 // ─────────────────────────────────────────────────────────────
 // 초기화
 // ─────────────────────────────────────────────────────────────
+document.getElementById('todo-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addTodoFromInput(); }
+});
+document.getElementById('todo-input').addEventListener('input', renderTodoParsePreview);
+window.addEventListener('focus', pullRemoteTodos);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pullRemoteTodos(); });
+
 document.getElementById('new-company').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); addCompany(); }
 });
@@ -2673,6 +3001,7 @@ document.addEventListener('keydown', e => {
   }
   initNotesHistory(state.notes || '');
   render();
+  renderTodoParsePreview();
   // 앱을 켜 둔 채 날짜가 바뀌면 지난 교육을 자동으로 '교육 완료'로 이동
   let autoArchiveDay = todayKey();
   setInterval(() => {
