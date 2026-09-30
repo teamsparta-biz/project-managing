@@ -398,6 +398,78 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .modal-actions button.primary.danger:hover { opacity: 0.88; }
 .modal-actions button.primary:disabled { opacity: 0.4; cursor: default; }
 
+/* 교육 노트 — 교육별 상세 페이지 (노션 사이드 피크 형태) */
+.page-trigger { width: 100%; display: flex; align-items: center; gap: 6px; padding: 5px 7px; border: 1px solid var(--border-tertiary); background: transparent; border-radius: var(--radius-md); cursor: pointer; font-family: var(--font-sans); font-size: 11px; color: var(--text-secondary); text-align: left; line-height: 1.4; }
+.page-trigger:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.page-trigger i { font-size: 13px; flex-shrink: 0; }
+.page-trigger .page-trigger-label { flex-shrink: 0; }
+.page-trigger .page-trigger-peek { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-tertiary); }
+.page-trigger.has-page { color: var(--text-primary); border-color: var(--border-secondary); }
+.page-trigger .ti-arrow-up-right { margin-left: auto; color: var(--text-tertiary); }
+.edu-card-page-btn { flex-shrink: 0; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-tertiary); border-radius: 6px; background: transparent; color: var(--text-tertiary); cursor: pointer; }
+.edu-card-page-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.edu-card-page-btn.has-page { color: var(--text-primary); border-color: var(--border-secondary); }
+
+.page-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.28); z-index: 95; display: flex; justify-content: flex-end; animation: page-fade 0.15s ease-out; }
+@keyframes page-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes page-slide { from { transform: translateX(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+.page-panel { width: min(820px, 100vw); height: 100%; background: var(--bg-primary); border-left: 1px solid var(--border-secondary); box-shadow: -12px 0 32px rgba(0,0,0,0.12); display: flex; flex-direction: column; animation: page-slide 0.18s ease-out; }
+.page-panel.full { width: 100vw; border-left: none; }
+.page-topbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border-tertiary); flex-shrink: 0; }
+.page-crumb { font-size: 12px; color: var(--text-tertiary); display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.page-crumb strong { color: var(--text-secondary); font-weight: 500; }
+.page-topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.page-icon-btn { height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; border: none; border-radius: 6px; background: transparent; color: var(--text-secondary); font-family: var(--font-sans); font-size: 12px; cursor: pointer; }
+.page-icon-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.page-icon-btn i { font-size: 15px; }
+.page-mode-toggle { display: inline-flex; border: 1px solid var(--border-tertiary); border-radius: 7px; padding: 2px; margin-right: 4px; }
+.page-mode-toggle button { height: 24px; padding: 0 10px; border: none; border-radius: 5px; background: transparent; color: var(--text-tertiary); font-family: var(--font-sans); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.page-mode-toggle button.active { background: var(--bg-tertiary); color: var(--text-primary); }
+.page-scroll { flex: 1; overflow-y: auto; }
+.page-doc { max-width: 720px; margin: 0 auto; padding: 44px 48px 80px; box-sizing: border-box; }
+.page-panel.full .page-doc { max-width: 860px; }
+.page-title { font-size: 30px; font-weight: 700; line-height: 1.25; color: var(--text-primary); margin: 0 0 4px; word-break: keep-all; }
+.page-subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 22px; }
+.page-props { display: grid; grid-template-columns: 110px 1fr; row-gap: 2px; column-gap: 8px; font-size: 13px; margin-bottom: 18px; }
+.page-prop-key { color: var(--text-tertiary); display: inline-flex; align-items: center; gap: 6px; padding: 5px 0; }
+.page-prop-key i { font-size: 14px; }
+.page-prop-val { color: var(--text-primary); padding: 5px 0; min-width: 0; word-break: break-all; }
+.page-prop-val.empty { color: var(--text-tertiary); }
+.page-divider { border: none; border-top: 1px solid var(--border-tertiary); margin: 6px 0 22px; }
+.page-body-tools { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.page-body-tools .page-icon-btn { border: 1px solid var(--border-tertiary); }
+.page-editor { width: 100%; min-height: 60vh; padding: 0; border: none; outline: none; resize: none; background: transparent; color: var(--text-primary); font-family: var(--font-sans); font-size: 15px; line-height: 1.8; box-sizing: border-box; overflow: hidden; }
+.page-editor::placeholder { color: var(--text-tertiary); opacity: 0.8; white-space: pre-line; }
+.page-read { min-height: 60vh; font-size: 15px; line-height: 1.8; color: var(--text-primary); cursor: text; }
+.page-read h1 { font-size: 24px; font-weight: 700; margin: 28px 0 8px; }
+.page-read h2 { font-size: 20px; font-weight: 600; margin: 26px 0 6px; }
+.page-read h3 { font-size: 16px; font-weight: 600; margin: 20px 0 4px; }
+.page-read > :first-child { margin-top: 0; }
+.page-read p { margin: 0 0 10px; }
+.page-read ul, .page-read ol { padding-left: 24px; margin: 0 0 10px; }
+.page-read li { margin: 2px 0; }
+.page-read li:has(> input[type="checkbox"]) { list-style: none; margin-left: -22px; }
+.page-read input[type="checkbox"] { width: 15px; height: 15px; margin: 0 7px 0 0; vertical-align: -2px; cursor: pointer; accent-color: var(--text-primary); }
+.page-read li:has(> input[type="checkbox"]:checked) { color: var(--text-tertiary); text-decoration: line-through; }
+.page-read blockquote { border-left: 3px solid var(--text-primary); margin: 0 0 12px; padding: 2px 14px; color: var(--text-secondary); }
+.page-read code { background: var(--bg-tertiary); padding: 1px 6px; border-radius: 4px; font-size: 13px; font-family: ui-monospace, monospace; color: var(--text-danger); }
+.page-read pre { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 14px 16px; overflow-x: auto; margin: 0 0 12px; }
+.page-read pre code { background: none; padding: 0; color: var(--text-primary); }
+.page-read hr { border: none; border-top: 1px solid var(--border-tertiary); margin: 20px 0; }
+.page-read a { color: var(--text-primary); text-decoration: underline; text-decoration-color: var(--border-primary); text-underline-offset: 3px; }
+.page-read table { border-collapse: collapse; width: 100%; margin: 0 0 12px; font-size: 14px; }
+.page-read th, .page-read td { border: 1px solid var(--border-tertiary); padding: 6px 10px; text-align: left; }
+.page-read th { background: var(--bg-secondary); font-weight: 500; }
+.page-read-empty { color: var(--text-tertiary); }
+.page-foot { display: flex; gap: 8px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--border-tertiary); font-size: 11px; color: var(--text-tertiary); flex-shrink: 0; }
+.page-foot .page-foot-hint { margin-left: auto; }
+@media (max-width: 640px) {
+  .page-doc { padding: 28px 16px 60px; }
+  .page-title { font-size: 24px; }
+  .page-props { grid-template-columns: 88px 1fr; }
+  .page-foot .page-foot-hint { display: none; }
+}
+
 .padlet-round-list { display: flex; flex-direction: column; gap: 10px; max-height: 56vh; overflow-y: auto; margin-bottom: 18px; }
 .padlet-round { border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-secondary); padding: 10px 12px; }
 .padlet-round-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
@@ -608,6 +680,8 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 
   <div id="modal-root"></div>
 </div>
+
+<div id="page-root"></div>
 
 <button id="scroll-to-top" class="scroll-to-top" type="button" onclick="scrollToTop()" aria-label="맨 위로 이동" title="맨 위로 이동">
   <i class="ti ti-arrow-up" aria-hidden="true"></i><span>맨 위로</span>
@@ -1264,7 +1338,8 @@ function renderBody() {
           }
           <button class="archive-btn del-action-btn" onclick="delCompany(${c.id})" title="프로젝트 삭제"><i class="ti ti-trash"></i>삭제</button>
         </div>
-        <div class="meta-row" style="margin-top: 8px;">
+        <div class="meta-row" style="margin-top: 8px; flex-direction: column; align-items: stretch;">
+          ${pageTriggerHTML(c)}
           ${memoTriggerHTML(c)}
         </div>
       </td>
@@ -1490,6 +1565,298 @@ function jumpToMemo(id) {
     if (!memoDrawerOpen[id]) toggleMemoDrawer(id);
     document.getElementById('memo-drawer-row-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, 120);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 교육 노트 (c.page — 교육별 상세 페이지, 마크다운. Claude는 scripts/page-add.js로 추가)
+// ─────────────────────────────────────────────────────────────
+let pageOpenId = null;
+let pageMode = 'read';
+let pageWide = (() => { try { return localStorage.getItem('training_page_wide') === '1'; } catch (e) { return false; } })();
+
+const PAGE_TASK_RE = /^(\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\])/;
+
+// 미리보기의 n번째 체크박스에 대응하는 원문 줄을 토글한다 (코드블록 안의 줄은 제외).
+function togglePageTaskLine(src, index) {
+  const lines = (src || '').split('\n');
+  let fence = false, n = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*(```|~~~)/.test(lines[i])) { fence = !fence; continue; }
+    if (fence || !PAGE_TASK_RE.test(lines[i])) continue;
+    if (++n !== index) continue;
+    lines[i] = lines[i].replace(PAGE_TASK_RE, (_, a, mark, b) => a + (mark === ' ' ? 'x' : ' ') + b);
+    return lines.join('\n');
+  }
+  return src;
+}
+
+function pagePeekText(c) {
+  const line = (c.page || '').split('\n').map(l => l.trim()).find(Boolean) || '';
+  return line.replace(/^#{1,6}\s+/, '').replace(/^(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/, '');
+}
+
+function pageTriggerHTML(c) {
+  const has = !!(c.page || '').trim();
+  const peek = has ? pagePeekText(c) : '새 페이지';
+  return `<button type="button" class="page-trigger${has ? ' has-page' : ''}" id="page-trigger-${c.id}" onclick="openEduPage(${c.id})" title="이 교육의 상세 노트 페이지 열기">
+    <i class="ti ti-file-description"></i><span class="page-trigger-label">교육 노트</span>
+    <span class="page-trigger-peek" id="page-peek-${c.id}">${escHtml(peek)}</span>
+    <i class="ti ti-arrow-up-right"></i>
+  </button>`;
+}
+
+function refreshPageTrigger(c) {
+  const btn = document.getElementById('page-trigger-' + c.id);
+  const peek = document.getElementById('page-peek-' + c.id);
+  const has = !!(c.page || '').trim();
+  if (btn) btn.classList.toggle('has-page', has);
+  if (peek) peek.textContent = has ? pagePeekText(c) : '새 페이지';
+}
+
+function pagePropsHTML(c) {
+  const dates = (c.sessions || []).flatMap(s => s.dates || []).filter(Boolean).sort();
+  const dateVal = dates.length
+    ? (dates.length > 1 ? `${dates[0]} ~ ${dates[dates.length - 1]} · ${dates.length}일` : dates[0])
+    : '';
+  const instructors = [...new Set((c.sessions || []).flatMap(s => (s.instructorName || '').split(',')).map(s => s.trim()).filter(Boolean))].join(', ') || c.instructorName || '';
+  const tutors = [...new Set((c.sessions || []).flatMap(s => (s.tutorName || '').split(',')).map(s => s.trim()).filter(Boolean))].join(', ') || c.tutorName || '';
+  const contact = [c.contactName, c.contactPosition].filter(Boolean).join(' ') + (c.contactEmail ? ` · ${c.contactEmail}` : '');
+  const rows = [
+    ['ti-activity', '교육상태', c.trainingStatus || ''],
+    ['ti-calendar-event', '일정', dateVal],
+    ['ti-map-pin', '장소', c.location || ''],
+    ['ti-user-star', '강사', instructors],
+    ['ti-users', '기술튜터', tutors],
+    ['ti-user', '담당자', contact.trim()],
+  ];
+  const workbook = c.workbookUrl
+    ? `<div class="page-prop-key"><i class="ti ti-book"></i>교안</div><div class="page-prop-val"><a href="${escAttr(c.workbookUrl)}" target="_blank" rel="noopener" style="color:inherit;">${escHtml(c.workbookUrl)}</a></div>`
+    : '';
+  return `<div class="page-props">
+    ${rows.map(([icon, key, val]) => `<div class="page-prop-key"><i class="ti ${icon}"></i>${key}</div><div class="page-prop-val${val ? '' : ' empty'}">${val ? escHtml(val) : '비어 있음'}</div>`).join('')}
+    ${workbook}
+  </div>`;
+}
+
+function pageBodyHTML(c) {
+  if (pageMode === 'edit') {
+    return `<textarea id="page-editor" class="page-editor" oninput="onPageInput(this)" onkeydown="onPageKeydown(event)" placeholder="이 교육에 대해 자유롭게 기록하세요. 마크다운을 지원합니다.&#10;&#10;## 황대환 강사 교육리뷰&#10;- 실습 자료 순서변경&#10;- [ ] 체크리스트는 이렇게&#10;&#10;⌘E 로 읽기 모드 전환">${escHtml(c.page || '')}</textarea>`;
+  }
+  const src = (c.page || '').trim();
+  return `<div id="page-read" class="page-read" ondblclick="setPageMode('edit')" title="더블클릭하면 편집합니다">${src ? renderMarkdown(c.page) : '<p class="page-read-empty">아직 작성된 내용이 없습니다. 더블클릭하거나 ‘편집’을 눌러 시작하세요.</p>'}</div>`;
+}
+
+function pageFootHTML(c) {
+  const len = (c.page || '').length;
+  return `<span id="page-foot-count">${len.toLocaleString()}자</span><span class="notes-divider">·</span>
+    <span id="page-foot-updated">${c.pageUpdated ? '최종 수정 ' + fmtMemoTime(c.pageUpdated) : '아직 작성된 내용 없음'}</span>
+    <span class="page-foot-hint">⌘E 편집/읽기 전환 · Esc 닫기</span>`;
+}
+
+function renderEduPage() {
+  const root = document.getElementById('page-root');
+  if (!root) return;
+  const c = pageOpenId != null ? state.companies.find(x => x.id === pageOpenId) : null;
+  if (!c) { root.innerHTML = ''; pageOpenId = null; document.body.style.overflow = ''; return; }
+  document.body.style.overflow = 'hidden';
+  root.innerHTML = `<div class="page-overlay" onclick="if(event.target===this)closeEduPage()">
+    <div class="page-panel${pageWide ? ' full' : ''}" role="dialog" aria-label="교육 노트">
+      <div class="page-topbar">
+        <span class="page-crumb"><i class="ti ti-file-description"></i>교육 노트 <i class="ti ti-chevron-right"></i><strong>${escHtml(c.name || '이름 없음')}</strong></span>
+        <div class="page-topbar-actions">
+          <div class="page-mode-toggle">
+            <button class="${pageMode === 'edit' ? 'active' : ''}" onclick="setPageMode('edit')"><i class="ti ti-pencil"></i>편집</button>
+            <button class="${pageMode === 'read' ? 'active' : ''}" onclick="setPageMode('read')"><i class="ti ti-book-2"></i>읽기</button>
+          </div>
+          <button class="page-icon-btn" onclick="togglePageWide()" title="${pageWide ? '사이드로 보기' : '전체 화면으로 보기'}"><i class="ti ${pageWide ? 'ti-layout-sidebar-right' : 'ti-arrows-diagonal'}"></i></button>
+          <button class="page-icon-btn" onclick="closeEduPage()" title="닫기 (Esc)"><i class="ti ti-x"></i></button>
+        </div>
+      </div>
+      <div class="page-scroll" id="page-scroll">
+        <div class="page-doc">
+          <h1 class="page-title">${escHtml(c.name || '이름 없음')}</h1>
+          ${c.trainingName ? `<div class="page-subtitle">${escHtml(c.trainingName)}</div>` : ''}
+          ${pagePropsHTML(c)}
+          <hr class="page-divider" />
+          <div class="page-body-tools">
+            <button class="page-icon-btn" onclick="insertPageDateHeading()" title="오늘 날짜 제목을 맨 아래에 추가"><i class="ti ti-calendar-plus"></i>오늘 날짜로 기록 추가</button>
+          </div>
+          <div id="page-body">${pageBodyHTML(c)}</div>
+        </div>
+      </div>
+      <div class="page-foot" id="page-foot">${pageFootHTML(c)}</div>
+    </div>
+  </div>`;
+  wirePageBody();
+}
+
+function wirePageBody() {
+  const ta = document.getElementById('page-editor');
+  if (ta) { autoGrowPage(ta); return; }
+  const read = document.getElementById('page-read');
+  if (!read) return;
+  read.querySelectorAll('input[type="checkbox"]').forEach((box, i) => {
+    box.disabled = false;
+    box.addEventListener('click', e => { e.stopPropagation(); togglePageTask(i); });
+    box.addEventListener('dblclick', e => e.stopPropagation());
+  });
+  read.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+}
+
+function autoGrowPage(ta) {
+  const scroll = document.getElementById('page-scroll');
+  const top = scroll ? scroll.scrollTop : 0;
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+  if (scroll) scroll.scrollTop = top;
+}
+
+function openEduPage(companyId) {
+  const c = state.companies.find(x => x.id === companyId);
+  if (!c) return;
+  pageOpenId = companyId;
+  pageMode = (c.page || '').trim() ? 'read' : 'edit';
+  renderEduPage();
+  if (pageMode === 'edit') setTimeout(() => document.getElementById('page-editor')?.focus(), 30);
+}
+
+function closeEduPage() {
+  pageOpenId = null;
+  renderEduPage();
+}
+
+function setPageMode(mode) {
+  const c = state.companies.find(x => x.id === pageOpenId);
+  if (!c || pageMode === mode) return;
+  pageMode = mode;
+  const body = document.getElementById('page-body');
+  if (body) body.innerHTML = pageBodyHTML(c);
+  document.querySelectorAll('.page-mode-toggle button').forEach((b, i) => b.classList.toggle('active', (i === 0) === (mode === 'edit')));
+  wirePageBody();
+  if (mode === 'edit') {
+    const ta = document.getElementById('page-editor');
+    if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = ta.value.length; }
+  }
+}
+
+function togglePageWide() {
+  pageWide = !pageWide;
+  try { localStorage.setItem('training_page_wide', pageWide ? '1' : '0'); } catch (e) {}
+  const ta = document.getElementById('page-editor');
+  const sel = ta ? [ta.selectionStart, ta.selectionEnd] : null;
+  renderEduPage();
+  const next = document.getElementById('page-editor');
+  if (next && sel) { next.focus(); next.setSelectionRange(sel[0], sel[1]); }
+}
+
+function setPageContent(c, value) {
+  c.page = value;
+  c.pageUpdated = new Date().toISOString();
+  const count = document.getElementById('page-foot-count');
+  const updated = document.getElementById('page-foot-updated');
+  if (count) count.textContent = value.length.toLocaleString() + '자';
+  if (updated) updated.textContent = '최종 수정 ' + fmtMemoTime(c.pageUpdated);
+  refreshPageTrigger(c);
+  saveState();
+}
+
+function onPageInput(ta) {
+  const c = state.companies.find(x => x.id === pageOpenId);
+  if (!c) return;
+  autoGrowPage(ta);
+  setPageContent(c, ta.value);
+}
+
+function togglePageTask(index) {
+  const c = state.companies.find(x => x.id === pageOpenId);
+  if (!c) return;
+  setPageContent(c, togglePageTaskLine(c.page, index));
+  const body = document.getElementById('page-body');
+  if (body) body.innerHTML = pageBodyHTML(c);
+  wirePageBody();
+}
+
+function insertPageDateHeading() {
+  const c = state.companies.find(x => x.id === pageOpenId);
+  if (!c) return;
+  const d = new Date();
+  const heading = `## ${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  const base = (c.page || '').replace(/\s+$/, '');
+  const value = (base ? base + '\n\n' : '') + heading + '\n- ';
+  setPageContent(c, value);
+  pageMode = 'read';
+  setPageMode('edit');
+  const ta = document.getElementById('page-editor');
+  if (ta) { autoGrowPage(ta); ta.selectionStart = ta.selectionEnd = ta.value.length; }
+}
+
+// 편집기 단축키: 목록 자동 이어쓰기, Tab 들여쓰기, ⌘B 굵게
+function onPageKeydown(e) {
+  const ta = e.target;
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const pos = ta.selectionStart;
+    const lineStart = ta.value.lastIndexOf('\n', pos - 1) + 1;
+    if (!e.shiftKey) {
+      ta.setRangeText('  ', lineStart, lineStart, 'end');
+      ta.selectionStart = ta.selectionEnd = pos + 2;
+    } else if (ta.value.startsWith('  ', lineStart)) {
+      ta.setRangeText('', lineStart, lineStart + 2, 'end');
+      ta.selectionStart = ta.selectionEnd = Math.max(lineStart, pos - 2);
+    }
+    ta.dispatchEvent(new Event('input'));
+    return;
+  }
+  if (e.key === 'Enter' && !e.isComposing && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && ta.selectionStart === ta.selectionEnd) {
+    const pos = ta.selectionStart;
+    const lineStart = ta.value.lastIndexOf('\n', pos - 1) + 1;
+    const line = ta.value.slice(lineStart, pos);
+    const m = line.match(/^(\s*)([-*+]|(\d+)([.)]))\s+(\[[ xX]\]\s+)?/);
+    if (!m) return;
+    e.preventDefault();
+    if (line.slice(m[0].length).trim() === '') {
+      ta.setRangeText('', lineStart, pos, 'end');
+    } else {
+      const bullet = m[3] ? `${Number(m[3]) + 1}${m[4]}` : m[2];
+      ta.setRangeText(`\n${m[1]}${bullet} ${m[5] ? '[ ] ' : ''}`, pos, pos, 'end');
+    }
+    ta.dispatchEvent(new Event('input'));
+    return;
+  }
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === 'b' || e.key === 'B')) {
+    e.preventDefault();
+    const s = ta.selectionStart, en = ta.selectionEnd;
+    ta.setRangeText(`**${ta.value.slice(s, en)}**`, s, en, 'select');
+    if (s === en) ta.selectionStart = ta.selectionEnd = s + 2;
+    ta.dispatchEvent(new Event('input'));
+  }
+}
+
+// Claude(scripts/page-add.js)가 DB에 쓴 노트가 이 탭의 마지막 편집보다 새로우면 받아온다.
+function mergeRemotePages(remote) {
+  const list = remote && Array.isArray(remote.companies) ? remote.companies : [];
+  let changed = 0;
+  for (const rc of list) {
+    if (!rc || !rc.pageUpdated) continue;
+    const c = state.companies.find(x => x.id === rc.id);
+    if (!c || (c.pageUpdated && c.pageUpdated >= rc.pageUpdated)) continue;
+    c.page = rc.page || '';
+    c.pageUpdated = rc.pageUpdated;
+    refreshPageTrigger(c);
+    changed++;
+    if (pageOpenId === c.id) {
+      const body = document.getElementById('page-body');
+      if (body) body.innerHTML = pageBodyHTML(c);
+      const foot = document.getElementById('page-foot');
+      if (foot) foot.innerHTML = pageFootHTML(c);
+      wirePageBody();
+    }
+  }
+  if (changed) {
+    saveState();
+    renderCardView();
+    showCopyToast('', `교육 노트 ${changed}개를 새로 불러왔습니다`, 'ti-file-description');
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1749,6 +2116,7 @@ async function pullRemoteTodos() {
     const res = await fetch('/api/state?owner=' + encodeURIComponent(getCurrentOwner()));
     if (!res.ok) return;
     const remote = await res.json();
+    mergeRemotePages(remote);
     const incoming = (remote && Array.isArray(remote.todos) ? remote.todos : []).filter(t => t && t.id && !todoKnownIds.has(t.id));
     if (!incoming.length) return;
     incoming.forEach(t => { state.todos.push(t); todoKnownIds.add(t.id); });
@@ -1922,7 +2290,10 @@ function renderCardView() {
           <div class="edu-card-name">${escHtml(c.name)}</div>
           ${c.trainingName ? `<div class="edu-card-training">${escHtml(c.trainingName)}</div>` : ''}
         </div>
-        <span class="training-status-badge ${tsCls}" style="pointer-events:none;"><span class="status-dot"></span>${tsLabel}</span>
+        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+          <span class="training-status-badge ${tsCls}" style="pointer-events:none;"><span class="status-dot"></span>${tsLabel}</span>
+          <button type="button" class="edu-card-page-btn${(c.page || '').trim() ? ' has-page' : ''}" onclick="event.stopPropagation(); openEduPage(${c.id})" title="교육 노트 열기"><i class="ti ti-file-description"></i></button>
+        </div>
       </div>
       ${c.location ? `<div class="edu-card-meta"><i class="ti ti-map-pin"></i><span>${escHtml(c.location)}</span></div>` : ''}
       <div class="edu-card-meta"><i class="ti ti-calendar-event"></i><span>${dateLabel}</span></div>
@@ -2950,7 +3321,15 @@ document.getElementById('notes').addEventListener('keydown', e => {
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') {
+    if (pageOpenId != null && !document.getElementById('modal-root').innerHTML.trim()) closeEduPage();
+    else closeModal();
+    return;
+  }
+  if (pageOpenId != null && (e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === 'e' || e.key === 'E')) {
+    e.preventDefault();
+    setPageMode(pageMode === 'edit' ? 'read' : 'edit');
+  }
 });
 
 (async function init() {
