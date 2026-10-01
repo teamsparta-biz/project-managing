@@ -271,6 +271,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .todo-del:hover { color: var(--color-d-over); }
 .todo-done-toggle { margin: 6px 16px 0; background: none; border: none; padding: 4px 0; font-family: var(--font-sans); font-size: 12px; color: var(--text-tertiary); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
 .todo-done-toggle:hover { color: var(--text-primary); }
+.todo-done-time { flex-shrink: 0; font-size: 11px; color: var(--color-status-done); font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) { .todo-item { flex-wrap: wrap; } .todo-title { flex-basis: calc(100% - 30px); } .todo-del, .todo-date-input { opacity: 1; } }
 
 .period-row { margin-top: 8px; padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-tertiary); }
@@ -2027,7 +2028,8 @@ function todoItemHtml(t) {
     <button type="button" class="todo-check" onclick="toggleTodoDone('${t.id}')" aria-label="${t.done ? '완료 취소' : '완료'}" title="${t.done ? '완료 취소' : '완료'}">${t.done ? '<i class="ti ti-check"></i>' : ''}</button>
     ${companyHtml}
     <span class="todo-title" ondblclick="editTodoTitle('${t.id}')" title="더블클릭하면 수정">${escHtml(t.title)}</span>
-    ${t.due ? `<span class="todo-due">${todoDueLabel(t.due)}</span>${t.done ? '' : todoDTag(t.due)}` : ''}
+    ${t.due ? `<span class="todo-due">${t.done ? '마감 ' : ''}${todoDueLabel(t.due)}</span>${t.done ? '' : todoDTag(t.due)}` : ''}
+    ${t.done && todoDoneTime(t.doneAt) ? `<span class="todo-done-time" title="완료한 시각">${todoDoneTime(t.doneAt)} 완료</span>` : ''}
     <input type="date" class="todo-date-input" value="${escAttr(t.due || '')}" onchange="setTodoDue('${t.id}', this.value)" title="마감일 변경" aria-label="마감일 변경" />
     <button type="button" class="todo-del" onclick="deleteTodo('${t.id}')" title="삭제" aria-label="삭제"><i class="ti ti-x"></i></button>
   </div>`;
@@ -2055,6 +2057,35 @@ function todoGroups(todos) {
   });
   const done = todos.filter(t => t.done).sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
   return { groups: groups.filter(g => g.items.length), open, done };
+}
+
+// 완료한 일을 처리한 날짜(로컬 기준)별로 묶는다. done은 doneAt 내림차순이어야 한다.
+// doneAt이 없는 예전 항목은 맨 뒤 '완료일 미상'으로 모은다.
+function todoDoneByDate(done) {
+  const days = [];
+  const byDay = {};
+  const unknown = [];
+  done.forEach(t => {
+    const d = t.doneAt ? new Date(t.doneAt) : null;
+    if (!d || isNaN(d)) { unknown.push(t); return; }
+    const key = todoYmd(d);
+    if (!byDay[key]) { byDay[key] = { date: key, items: [] }; days.push(byDay[key]); }
+    byDay[key].items.push(t);
+  });
+  if (unknown.length) days.push({ date: '', items: unknown });
+  return days;
+}
+
+function todoDoneTime(doneAt) {
+  const d = doneAt ? new Date(doneAt) : null;
+  if (!d || isNaN(d)) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function todoDoneDayLabel(date) {
+  if (!date) return '완료일 미상';
+  const n = todoDiff(date);
+  return todoDueLabel(date) + (n === 0 ? ' · 오늘' : n === -1 ? ' · 어제' : '');
 }
 
 function renderTodos() {
@@ -2085,7 +2116,9 @@ function renderTodos() {
     ${g.items.map(todoItemHtml).join('')}`).join('');
   if (done.length) {
     html += `<button type="button" class="todo-done-toggle" onclick="todoShowDone = !todoShowDone; renderTodos();"><i class="ti ti-chevron-${todoShowDone ? 'up' : 'down'}"></i>완료한 일 ${done.length}개 ${todoShowDone ? '숨기기' : '보기'}</button>`;
-    if (todoShowDone) html += done.slice(0, 50).map(todoItemHtml).join('');
+    if (todoShowDone) html += todoDoneByDate(done).map(day => `
+      <div class="todo-group-title done-day">${todoDoneDayLabel(day.date)}<span class="todo-group-count">${day.items.length}</span></div>
+      ${day.items.map(todoItemHtml).join('')}`).join('');
   }
   body.innerHTML = html;
 }
