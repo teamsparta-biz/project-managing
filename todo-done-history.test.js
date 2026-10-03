@@ -8,18 +8,18 @@ const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 
 // index.html 안의 완료 이력 묶음 함수만 떼어내 실행한다.
 function load() {
-  const src = ['todoYmd', 'todoDoneByDate', 'todoDoneTime'].map(name => {
+  const src = ['todoYmd', 'todoDoneByDate', 'todoDoneSections', 'todoDoneMonthLabel', 'todoDoneTime'].map(name => {
     const m = html.match(new RegExp(`\\nfunction ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}\\n`));
     assert.ok(m, `${name}() 함수를 index.html에서 찾지 못했습니다`);
     return m[0];
-  }).join('\n') + '\nthis.todoDoneByDate = todoDoneByDate; this.todoDoneTime = todoDoneTime;';
+  }).join('\n') + '\nthis.todoDoneByDate = todoDoneByDate; this.todoDoneTime = todoDoneTime; this.todoDoneSections = todoDoneSections; this.todoDoneMonthLabel = todoDoneMonthLabel;';
   const ctx = { Date, isNaN, String };
   vm.createContext(ctx);
   vm.runInContext(src, ctx);
   return ctx;
 }
 
-const { todoDoneByDate, todoDoneTime } = load();
+const { todoDoneByDate, todoDoneTime, todoDoneSections, todoDoneMonthLabel } = load();
 // 로컬 시각 기준 ISO 문자열
 const at = (y, m, d, h, mi) => new Date(y, m - 1, d, h, mi).toISOString();
 
@@ -47,4 +47,26 @@ test('doneAt이 없는 예전 항목은 맨 뒤 완료일 미상으로 모은다
 test('완료 시각은 HH:MM으로 표시하고 값이 없으면 빈 문자열이다', () => {
   assert.equal(todoDoneTime(at(2026, 10, 1, 9, 5)), '09:05');
   assert.equal(todoDoneTime(null), '');
+});
+
+test('이번 달은 날짜별로 두고 지난 달은 월별로 묶는다', () => {
+  const done = [
+    { id: 'a', doneAt: at(2026, 10, 1, 15, 30) },
+    { id: 'b', doneAt: at(2026, 9, 30, 10, 0) },
+    { id: 'c', doneAt: at(2026, 9, 2, 10, 0) },
+    { id: 'd', doneAt: at(2026, 8, 20, 10, 0) },
+    { id: 'x', doneAt: null },
+  ];
+  const s = JSON.parse(JSON.stringify(todoDoneSections(todoDoneByDate(done), '2026-10-01')));
+  assert.deepEqual(s.current.map(d => d.date), ['2026-10-01']);
+  assert.deepEqual(s.months.map(m => [m.month, m.count, m.days.map(d => d.date)]), [
+    ['2026-09', 2, ['2026-09-30', '2026-09-02']],
+    ['2026-08', 1, ['2026-08-20']],
+  ]);
+  assert.equal(s.unknown.items[0].id, 'x');
+});
+
+test('월 묶음 이름은 올해면 월만, 다른 해면 연도까지 붙인다', () => {
+  assert.equal(todoDoneMonthLabel('2026-09', '2026-10-01'), '9월');
+  assert.equal(todoDoneMonthLabel('2025-12', '2026-01-05'), '2025년 12월');
 });

@@ -275,6 +275,9 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .todo-deleted-time { flex-shrink: 0; font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .todo-restore { flex-shrink: 0; background: none; border: 1px solid var(--border-secondary); border-radius: var(--radius-md); padding: 1px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 11px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 3px; }
 .todo-restore:hover { color: var(--text-primary); border-color: var(--border-primary); }
+.todo-done-month { display: flex; width: calc(100% - 32px); margin: 8px 16px 0; padding: 6px 8px; background: var(--bg-secondary); border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--text-secondary); cursor: pointer; align-items: center; gap: 6px; }
+.todo-done-month:hover { color: var(--text-primary); }
+.todo-done-month .todo-group-count { margin-left: auto; font-weight: 500; color: var(--text-tertiary); }
 .todo-done-time { flex-shrink: 0; font-size: 11px; color: var(--color-status-done); font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) { .todo-item { flex-wrap: wrap; } .todo-title { flex-basis: calc(100% - 30px); } .todo-del, .todo-date-input { opacity: 1; } }
 
@@ -1870,6 +1873,7 @@ function mergeRemotePages(remote) {
 let todoPanelOpen = (() => { try { return localStorage.getItem('training_todo_open') !== '0'; } catch (e) { return true; } })();
 let todoShowDone = false;
 let todoShowDeleted = false;
+const todoOpenMonths = new Set(); // 펼쳐 둔 지난 달 완료 묶음 ('YYYY-MM')
 const todoKnownIds = new Set();
 
 const TODO_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -2101,6 +2105,35 @@ function todoDoneByDate(done) {
   return days;
 }
 
+// 날짜별 묶음(todoDoneByDate 결과)을 이번 달 날짜 묶음과 지난 달 월 묶음으로 나눈다.
+// today: 'YYYY-MM-DD'. 완료일 미상 묶음은 그대로 맨 뒤에 둔다.
+function todoDoneSections(days, today) {
+  const thisMonth = today.slice(0, 7);
+  const current = [];
+  const months = [];
+  const byMonth = {};
+  let unknown = null;
+  days.forEach(day => {
+    if (!day.date) { unknown = day; return; }
+    const key = day.date.slice(0, 7);
+    if (key >= thisMonth) { current.push(day); return; }
+    if (!byMonth[key]) { byMonth[key] = { month: key, days: [], count: 0 }; months.push(byMonth[key]); }
+    byMonth[key].days.push(day);
+    byMonth[key].count += day.items.length;
+  });
+  return { current, months, unknown };
+}
+
+function todoDoneMonthLabel(month, today) {
+  const [y, m] = month.split('-');
+  return (y === today.slice(0, 4) ? '' : `${y}년 `) + `${Number(m)}월`;
+}
+
+function toggleTodoMonth(month) {
+  if (todoOpenMonths.has(month)) todoOpenMonths.delete(month); else todoOpenMonths.add(month);
+  renderTodos();
+}
+
 function todoDoneTime(doneAt) {
   const d = doneAt ? new Date(doneAt) : null;
   if (!d || isNaN(d)) return '';
@@ -2154,9 +2187,20 @@ function renderTodos() {
     ${g.items.map(todoItemHtml).join('')}`).join('');
   if (done.length) {
     html += `<button type="button" class="todo-done-toggle" onclick="todoShowDone = !todoShowDone; renderTodos();"><i class="ti ti-chevron-${todoShowDone ? 'up' : 'down'}"></i>완료한 일 ${done.length}개 ${todoShowDone ? '숨기기' : '보기'}</button>`;
-    if (todoShowDone) html += todoDoneByDate(done).map(day => `
-      <div class="todo-group-title done-day">${todoDoneDayLabel(day.date)}<span class="todo-group-count">${day.items.length}</span></div>
-      ${day.items.map(todoItemHtml).join('')}`).join('');
+    if (todoShowDone) {
+      const today = todoYmd(new Date());
+      const { current, months, unknown } = todoDoneSections(todoDoneByDate(done), today);
+      const dayHtml = day => `
+        <div class="todo-group-title done-day">${todoDoneDayLabel(day.date)}<span class="todo-group-count">${day.items.length}</span></div>
+        ${day.items.map(todoItemHtml).join('')}`;
+      html += current.map(dayHtml).join('');
+      html += months.map(mo => {
+        const isOpen = todoOpenMonths.has(mo.month);
+        return `<button type="button" class="todo-done-month" onclick="toggleTodoMonth('${mo.month}')" aria-expanded="${isOpen}"><i class="ti ti-chevron-${isOpen ? 'down' : 'right'}"></i>${todoDoneMonthLabel(mo.month, today)}<span class="todo-group-count">${mo.count}개</span></button>
+          ${isOpen ? mo.days.map(dayHtml).join('') : ''}`;
+      }).join('');
+      if (unknown) html += dayHtml(unknown);
+    }
   }
   if (deleted.length) {
     html += `<button type="button" class="todo-done-toggle" onclick="todoShowDeleted = !todoShowDeleted; renderTodos();"><i class="ti ti-chevron-${todoShowDeleted ? 'up' : 'down'}"></i>삭제한 일 ${deleted.length}개 ${todoShowDeleted ? '숨기기' : '보기'}</button>`;
