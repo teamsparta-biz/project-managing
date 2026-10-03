@@ -269,8 +269,12 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .todo-del { flex-shrink: 0; background: none; border: none; padding: 2px; cursor: pointer; color: var(--text-tertiary); display: inline-flex; opacity: 0; transition: opacity 0.15s; }
 .todo-item:hover .todo-del, .todo-del:focus-visible { opacity: 1; }
 .todo-del:hover { color: var(--color-d-over); }
-.todo-done-toggle { margin: 6px 16px 0; background: none; border: none; padding: 4px 0; font-family: var(--font-sans); font-size: 12px; color: var(--text-tertiary); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.todo-done-toggle { margin: 6px 16px 0; background: none; border: none; padding: 4px 0; font-family: var(--font-sans); font-size: 12px; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; gap: 5px; }
 .todo-done-toggle:hover { color: var(--text-primary); }
+.todo-item.deleted .todo-title { color: var(--text-tertiary); }
+.todo-deleted-time { flex-shrink: 0; font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.todo-restore { flex-shrink: 0; background: none; border: 1px solid var(--border-secondary); border-radius: var(--radius-md); padding: 1px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 11px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 3px; }
+.todo-restore:hover { color: var(--text-primary); border-color: var(--border-primary); }
 .todo-done-time { flex-shrink: 0; font-size: 11px; color: var(--color-status-done); font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) { .todo-item { flex-wrap: wrap; } .todo-title { flex-basis: calc(100% - 30px); } .todo-del, .todo-date-input { opacity: 1; } }
 
@@ -1865,6 +1869,7 @@ function mergeRemotePages(remote) {
 // ─────────────────────────────────────────────────────────────
 let todoPanelOpen = (() => { try { return localStorage.getItem('training_todo_open') !== '0'; } catch (e) { return true; } })();
 let todoShowDone = false;
+let todoShowDeleted = false;
 const todoKnownIds = new Set();
 
 const TODO_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -1968,7 +1973,25 @@ function toggleTodoDone(id) {
   renderTodos();
 }
 
+// 바로 지우지 않고 deletedAt만 남겨 '삭제한 일'에서 다시 보고 복원할 수 있게 한다.
 function deleteTodo(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  t.deletedAt = new Date().toISOString();
+  saveState();
+  renderTodos();
+}
+
+function restoreTodo(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  delete t.deletedAt;
+  saveState();
+  renderTodos();
+}
+
+function purgeTodo(id) {
+  if (!confirm('이 할 일을 완전히 삭제할까요? 되돌릴 수 없습니다.')) return;
   state.todos = state.todos.filter(t => t.id !== id);
   saveState();
   renderTodos();
@@ -2035,7 +2058,9 @@ function todoItemHtml(t) {
   </div>`;
 }
 
-function todoGroups(todos) {
+function todoGroups(all) {
+  const todos = all.filter(t => !t.deletedAt);
+  const deleted = all.filter(t => t.deletedAt).sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
   const open = todos.filter(t => !t.done).sort((a, b) => {
     if (!a.due && !b.due) return (a.createdAt || '').localeCompare(b.createdAt || '');
     if (!a.due) return 1;
@@ -2056,7 +2081,7 @@ function todoGroups(todos) {
     byKey[k].items.push(t);
   });
   const done = todos.filter(t => t.done).sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
-  return { groups: groups.filter(g => g.items.length), open, done };
+  return { groups: groups.filter(g => g.items.length), open, done, deleted };
 }
 
 // 완료한 일을 처리한 날짜(로컬 기준)별로 묶는다. done은 doneAt 내림차순이어야 한다.
@@ -2082,6 +2107,19 @@ function todoDoneTime(doneAt) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+function todoDeletedItemHtml(t) {
+  const d = new Date(t.deletedAt);
+  const when = isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${todoDoneTime(t.deletedAt)} 삭제`;
+  return `<div class="todo-item deleted">
+    ${t.company ? `<span class="todo-company plain">${escHtml(t.company)}</span>` : ''}
+    <span class="todo-title">${escHtml(t.title)}</span>
+    ${t.due ? `<span class="todo-due">마감 ${todoDueLabel(t.due)}</span>` : ''}
+    ${when ? `<span class="todo-deleted-time">${when}</span>` : ''}
+    <button type="button" class="todo-restore" onclick="restoreTodo('${t.id}')" title="할 일 목록으로 되돌리기"><i class="ti ti-arrow-back-up"></i>복원</button>
+    <button type="button" class="todo-del" onclick="purgeTodo('${t.id}')" title="완전히 삭제" aria-label="완전히 삭제"><i class="ti ti-trash"></i></button>
+  </div>`;
+}
+
 function todoDoneDayLabel(date) {
   if (!date) return '완료일 미상';
   const n = todoDiff(date);
@@ -2093,7 +2131,7 @@ function renderTodos() {
   if (!panel) return;
   const todos = Array.isArray(state.todos) ? state.todos : [];
   todos.forEach(t => todoKnownIds.add(t.id));
-  const { groups, open, done } = todoGroups(todos);
+  const { groups, open, done, deleted } = todoGroups(todos);
   const overCount = open.filter(t => { const n = todoDiff(t.due); return n !== null && n < 0; }).length;
 
   const badge = document.getElementById('todo-count');
@@ -2119,6 +2157,10 @@ function renderTodos() {
     if (todoShowDone) html += todoDoneByDate(done).map(day => `
       <div class="todo-group-title done-day">${todoDoneDayLabel(day.date)}<span class="todo-group-count">${day.items.length}</span></div>
       ${day.items.map(todoItemHtml).join('')}`).join('');
+  }
+  if (deleted.length) {
+    html += `<button type="button" class="todo-done-toggle" onclick="todoShowDeleted = !todoShowDeleted; renderTodos();"><i class="ti ti-chevron-${todoShowDeleted ? 'up' : 'down'}"></i>삭제한 일 ${deleted.length}개 ${todoShowDeleted ? '숨기기' : '보기'}</button>`;
+    if (todoShowDeleted) html += deleted.map(todoDeletedItemHtml).join('');
   }
   body.innerHTML = html;
 }
