@@ -603,7 +603,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .cal-bar:not(.cal-cont-l) { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
 .cal-bar:not(.cal-cont-r) { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
 .cal-bar .cal-label { position: relative; z-index: 1; }
-.cal-bar .cal-sess { position: absolute; bottom: 0; height: 3px; background: var(--cal-c); }
+.cal-gap { align-self: center; height: 0; margin: 0 2px; border-top: 2px dotted color-mix(in srgb, var(--cal-c) 55%, transparent); }
 .cal-list { margin-top: 16px; border: 1px solid var(--border-secondary); border-radius: var(--radius-lg); background: var(--bg-primary); }
 .cal-list-head { padding: 10px 16px; font-size: 13px; font-weight: 500; border-bottom: 1px solid var(--border-tertiary); }
 .cal-list-head span { color: var(--text-tertiary); font-weight: 400; margin-left: 6px; }
@@ -2767,6 +2767,23 @@ function calRange(c) {
   return { start, end: end < start ? start : end, sessions: [] };
 }
 
+// 교육일을 연속 구간(run)으로 묶고, 구간 사이의 쉬는 기간(gap)을 구한다.
+// 주말만 끼어 있는 간격은 이어진 것으로 본다. 회차 일자가 없으면 시작~종료를 한 구간으로.
+function calRuns(r) {
+  if (!r.sessions.length) return { runs: [{ start: r.start, end: r.end }], gaps: [] };
+  const addDays = (str, n) => { const d = calParse(str); d.setDate(d.getDate() + n); return calFmt(d); };
+  const onlyWeekend = (from, to) => { for (let d = from; d <= to; d = addDays(d, 1)) { const w = calParse(d).getDay(); if (w !== 0 && w !== 6) return false; } return true; };
+  const runs = [], gaps = [];
+  let cur = { start: r.sessions[0], end: r.sessions[0] };
+  r.sessions.slice(1).forEach(d => {
+    const gapFrom = addDays(cur.end, 1), gapTo = addDays(d, -1);
+    if (gapFrom > gapTo || onlyWeekend(gapFrom, gapTo)) cur.end = d;
+    else { runs.push(cur); gaps.push({ start: gapFrom, end: gapTo }); cur = { start: d, end: d }; }
+  });
+  runs.push(cur);
+  return { runs, gaps };
+}
+
 function calMove(delta) {
   if (delta === 0) { calState.y = new Date().getFullYear(); calState.m = new Date().getMonth(); }
   else { const d = new Date(calState.y, calState.m + delta, 1); calState.y = d.getFullYear(); calState.m = d.getMonth(); }
@@ -2788,7 +2805,7 @@ function renderCalendar() {
     .map(c => ({ c, r: calRange(c) }))
     .filter(x => x.r)
     .sort((a, b) => a.r.start.localeCompare(b.r.start) || a.r.end.localeCompare(b.r.end));
-  items.forEach((x, i) => { x.color = CAL_COLORS[i % CAL_COLORS.length]; });
+  items.forEach((x, i) => { x.color = CAL_COLORS[i % CAL_COLORS.length]; Object.assign(x, calRuns(x.r)); });
   const label = c => c.trainingName && c.trainingName !== c.name ? `${c.name} · ${c.trainingName}` : (c.name || '이름 없음');
 
   const monthStart = calFmt(first), monthEnd = calFmt(new Date(y, m + 1, 0));
@@ -2798,23 +2815,30 @@ function renderCalendar() {
   for (let w = 0; w < weekCount; w++) {
     const days = Array.from({ length: 7 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + w * 7 + i));
     const ws = calFmt(days[0]), we = calFmt(days[6]);
-    // 이번 주에 걸치는 교육을 막대 구간으로 만들고, 겹치지 않게 줄(lane)에 배치
-    const segs = items.filter(x => x.r.start <= we && x.r.end >= ws).map(x => {
-      const s = Math.max(0, calDiff(ws, x.r.start)), e = Math.min(6, calDiff(ws, x.r.end));
-      return { x, s, e, contL: x.r.start < ws, contR: x.r.end > we };
-    }).sort((a, b) => a.s - b.s || b.e - a.e);
+    // 이번 주에 걸치는 교육마다 한 줄(lane)을 쓰고, 그 줄 안에 교육일 막대와 쉬는 기간 점선을 배치
+    const rows = items.map(x => {
+      const clip = (r, kind) => {
+        if (r.end < ws || r.start > we) return null;
+        return { kind, s: Math.max(0, calDiff(ws, r.start)), e: Math.min(6, calDiff(ws, r.end)), contL: r.start < ws, contR: r.end > we };
+      };
+      const parts = x.runs.map(r => clip(r, 'run')).concat(x.gaps.map(g => clip(g, 'gap'))).filter(Boolean);
+      return parts.some(pt => pt.kind === 'run') ? { x, parts, s: Math.min(...parts.map(pt => pt.s)), e: Math.max(...parts.map(pt => pt.e)) } : null;
+    }).filter(Boolean).sort((a, b) => a.s - b.s || b.e - a.e);
     const laneEnds = [];
-    segs.forEach(sg => {
-      let lane = laneEnds.findIndex(end => end < sg.s);
+    rows.forEach(rw => {
+      let lane = laneEnds.findIndex(end => end < rw.s);
       if (lane === -1) { lane = laneEnds.length; laneEnds.push(-1); }
-      laneEnds[lane] = sg.e; sg.lane = lane;
+      laneEnds[lane] = rw.e; rw.lane = lane;
     });
-    const bars = segs.map(sg => {
-      const n = sg.e - sg.s + 1;
-      const stripes = sg.x.r.sessions.map(d => calDiff(ws, d)).filter(i => i >= sg.s && i <= sg.e)
-        .map(i => `<span class="cal-sess" style="left:${(i - sg.s) / n * 100}%; width:${100 / n}%;"></span>`).join('');
-      const rangeTxt = sg.x.r.start === sg.x.r.end ? sg.x.r.start : `${sg.x.r.start} ~ ${sg.x.r.end}`;
-      return `<div class="cal-bar${sg.contL ? ' cal-cont-l' : ''}${sg.contR ? ' cal-cont-r' : ''}" style="--cal-c:${sg.x.color}; grid-column:${sg.s + 1} / ${sg.e + 2}; grid-row:${sg.lane + 1};" title="${escHtml(label(sg.x.c))}\n${rangeTxt}" onclick="jumpToCompany(${sg.x.c.id})"><span class="cal-label">${escHtml(label(sg.x.c))}</span>${stripes}</div>`;
+    const bars = rows.map(rw => {
+      const rangeTxt = rw.x.r.start === rw.x.r.end ? rw.x.r.start : `${rw.x.r.start} ~ ${rw.x.r.end}`;
+      const title = `${escHtml(label(rw.x.c))}\n${rangeTxt}`;
+      const firstRun = rw.parts.filter(pt => pt.kind === 'run').sort((a, b) => a.s - b.s)[0];
+      return rw.parts.map(pt => {
+        const pos = `grid-column:${pt.s + 1} / ${pt.e + 2}; grid-row:${rw.lane + 1};`;
+        if (pt.kind === 'gap') return `<div class="cal-gap" style="--cal-c:${rw.x.color}; ${pos}"></div>`;
+        return `<div class="cal-bar${pt.contL ? ' cal-cont-l' : ''}${pt.contR ? ' cal-cont-r' : ''}" style="--cal-c:${rw.x.color}; ${pos}" title="${title}" onclick="jumpToCompany(${rw.x.c.id})"><span class="cal-label">${pt === firstRun ? escHtml(label(rw.x.c)) : ''}</span></div>`;
+      }).join('');
     }).join('');
     const bg = days.map(d => `<div class="${[0, 6].includes(d.getDay()) ? 'cal-wknd ' : ''}${calFmt(d) === todayStr ? 'cal-today' : ''}"></div>`).join('');
     const nums = days.map(d => `<div class="${d.getMonth() !== m ? 'cal-other ' : ''}${calFmt(d) === todayStr ? 'cal-today' : ''}"><span>${d.getMonth() !== m || d.getDate() === 1 ? `${d.getMonth() + 1}/` : ''}${d.getDate()}</span></div>`).join('');
@@ -2840,7 +2864,7 @@ function renderCalendar() {
       ${weeks}
     </div>
     <div class="cal-list">
-      <div class="cal-list-head">${m + 1}월 교육 목록<span>${inMonth.length}개 · 막대 아래 굵은 선은 실제 교육 진행일</span></div>
+      <div class="cal-list-head">${m + 1}월 교육 목록<span>${inMonth.length}개 · 막대는 실제 교육일, 점선은 쉬는 기간</span></div>
       ${list}
     </div>`;
 }
