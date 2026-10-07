@@ -572,6 +572,49 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .scroll-to-top:focus-visible { outline: 2px solid var(--color-section-before); outline-offset: 3px; }
 .scroll-to-top i { font-size: 15px; }
 @media (max-width: 560px) { .scroll-to-top { right: 16px; bottom: 16px; padding: 10px; } .scroll-to-top span { display: none; } }
+
+/* 일정 캘린더 */
+.cal-view { display: none; }
+.cal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.cal-title { font-size: 18px; font-weight: 600; color: var(--text-primary); min-width: 110px; text-align: center; font-variant-numeric: tabular-nums; }
+.cal-nav-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; font-size: 12px; font-family: var(--font-sans); border: 1px solid var(--border-secondary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-secondary); cursor: pointer; }
+.cal-nav-btn:hover { color: var(--text-primary); background: var(--bg-secondary); }
+.cal-opt { margin-left: auto; font-size: 12px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.cal-grid { border: 1px solid var(--border-secondary); border-radius: var(--radius-lg); background: var(--bg-primary); overflow: hidden; }
+.cal-dow, .cal-week-nums, .cal-lanes, .cal-week-bg { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal-dow { background: var(--bg-secondary); border-bottom: 1px solid var(--border-secondary); }
+.cal-dow div { padding: 6px 8px; font-size: 12px; font-weight: 500; color: var(--text-tertiary); }
+.cal-week { position: relative; border-bottom: 1px solid var(--border-tertiary); min-height: 96px; }
+.cal-week:last-child { border-bottom: none; }
+.cal-week-bg { position: absolute; inset: 0; }
+.cal-week-bg div { border-right: 1px solid var(--border-tertiary); }
+.cal-week-bg div:last-child { border-right: none; }
+.cal-week-bg .cal-wknd { background: color-mix(in srgb, var(--bg-secondary) 70%, transparent); }
+.cal-week-bg .cal-today { background: color-mix(in srgb, var(--color-status-progress) 10%, transparent); }
+.cal-week-nums { position: relative; }
+.cal-week-nums div { padding: 4px 8px; font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.cal-week-nums .cal-other { color: var(--text-tertiary); opacity: 0.5; }
+.cal-week-nums .cal-today span { background: var(--text-primary); color: var(--bg-primary); border-radius: 999px; padding: 1px 6px; font-weight: 600; }
+.cal-lanes { position: relative; padding-bottom: 6px; row-gap: 3px; }
+.cal-bar { position: relative; height: 22px; margin: 0 2px; padding: 0 7px; font-size: 11px; line-height: 22px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary); background: color-mix(in srgb, var(--cal-c) 20%, var(--bg-primary)); border: 1px solid color-mix(in srgb, var(--cal-c) 45%, transparent); }
+.cal-bar:hover { background: color-mix(in srgb, var(--cal-c) 32%, var(--bg-primary)); }
+.cal-bar.cal-cont-l { margin-left: 0; border-left: none; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cal-bar.cal-cont-r { margin-right: 0; border-right: none; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.cal-bar:not(.cal-cont-l) { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.cal-bar:not(.cal-cont-r) { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.cal-bar .cal-label { position: relative; z-index: 1; }
+.cal-bar .cal-sess { position: absolute; bottom: 0; height: 3px; background: var(--cal-c); }
+.cal-list { margin-top: 16px; border: 1px solid var(--border-secondary); border-radius: var(--radius-lg); background: var(--bg-primary); }
+.cal-list-head { padding: 10px 16px; font-size: 13px; font-weight: 500; border-bottom: 1px solid var(--border-tertiary); }
+.cal-list-head span { color: var(--text-tertiary); font-weight: 400; margin-left: 6px; }
+.cal-list-row { display: flex; align-items: center; gap: 10px; padding: 8px 16px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--border-tertiary); }
+.cal-list-row:last-child { border-bottom: none; }
+.cal-list-row:hover { background: var(--bg-secondary); }
+.cal-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--cal-c); flex-shrink: 0; }
+.cal-list-name { font-weight: 500; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-list-range { margin-left: auto; color: var(--text-secondary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.cal-list-days { color: var(--text-tertiary); font-size: 12px; flex-shrink: 0; width: 64px; text-align: right; }
+.cal-empty { padding: 28px; text-align: center; color: var(--text-tertiary); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -611,6 +654,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
     <button class="tab" id="tab-archived" onclick="switchTab('archived')"><i class="ti ti-archive"></i>교육 완료<span class="count" id="count-archived">0</span></button>
     <button class="tab" id="tab-completed" onclick="switchTab('completed')"><i class="ti ti-circle-check"></i>완료<span class="count" id="count-completed">0</span></button>
     <button class="tab" id="tab-overview" onclick="switchTab('overview')"><i class="ti ti-layout-grid"></i>전체보기<span class="count" id="count-overview">0</span></button>
+    <button class="tab" id="tab-calendar" onclick="switchTab('calendar')"><i class="ti ti-calendar-month"></i>일정 캘린더</button>
   </div>
 
   <div id="todo-panel" class="todo-panel" style="display:none;">
@@ -650,6 +694,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
   </div>
 
   <div id="card-view" class="card-grid" style="display:none;"></div>
+  <div id="calendar-view" class="cal-view"></div>
 
   <div class="notes-section">
     <div class="notes-header">
@@ -1164,7 +1209,7 @@ function isFullyDone(c) {
 // 탭에 표시할 프로젝트 목록. '완료' 탭은 교육 완료된 프로젝트 중 칸반보드를
 // 전부 채운 것만, '교육 완료' 탭은 그 나머지만 보여준다.
 function companiesForTab(tab) {
-  if (tab === 'overview') return state.companies;
+  if (tab === 'overview' || tab === 'calendar') return state.companies;
   if (tab === 'active') return state.companies.filter(c => !c.archived);
   if (tab === 'completed') return state.companies.filter(c => c.archived && isFullyDone(c));
   return state.companies.filter(c => c.archived && !isFullyDone(c));
@@ -2297,7 +2342,7 @@ function renderSummary() {
     });
   });
   const pct = totalAll ? Math.round(totalDone / totalAll * 100) : 0;
-  const labelMap = { active: '진행 중', archived: '교육 완료', completed: '완료' };
+  const labelMap = { active: '진행 중', archived: '교육 완료', completed: '완료', calendar: '일정 캘린더' };
   const label = labelMap[currentTab] || '전체';
   document.getElementById('summary').innerHTML = `<strong>${label} ${visibleCompanies.length}개</strong> · <strong>${taskCount}개 업무</strong> · 평균 진행률 <strong>${pct}%</strong>`;
 }
@@ -2356,7 +2401,7 @@ function render() {
   // 저장을 가장 먼저 예약 — 이후 렌더 단계에서 예외가 나도 칸반보드 선택값(체크 상태 등)이 DB에 반드시 저장되도록.
   saveState();
   if (!Array.isArray(state.todos)) state.todos = [];
-  renderHead(); renderBody(); renderCardView(); renderSummary(); renderNotes(); renderMemoOverview(); renderTodos(); setupStickyHeader();
+  renderHead(); renderBody(); renderCardView(); renderCalendar(); renderSummary(); renderNotes(); renderMemoOverview(); renderTodos(); setupStickyHeader();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -2694,9 +2739,110 @@ function switchTab(tab) {
   document.getElementById('tab-archived').classList.toggle('active', tab === 'archived');
   document.getElementById('tab-completed').classList.toggle('active', tab === 'completed');
   document.getElementById('tab-overview').classList.toggle('active', tab === 'overview');
-  document.getElementById('table-view').style.display = tab === 'overview' ? 'none' : '';
+  document.getElementById('tab-calendar').classList.toggle('active', tab === 'calendar');
+  document.getElementById('table-view').style.display = (tab === 'overview' || tab === 'calendar') ? 'none' : '';
   document.getElementById('card-view').style.display = tab === 'overview' ? 'grid' : 'none';
+  document.getElementById('calendar-view').style.display = tab === 'calendar' ? 'block' : 'none';
   render();
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// 일정 캘린더 — 교육별 시작~종료일을 월 달력에 막대로 표시
+// ─────────────────────────────────────────────────────────────
+const calState = { y: new Date().getFullYear(), m: new Date().getMonth(), showPast: false };
+const CAL_COLORS = ['#C8192E', '#2E7D4F', '#3B6FD4', '#BA7517', '#8A4FB8', '#0F8B8D', '#D6558B', '#6B7A1F'];
+
+function calFmt(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function calParse(str) { const [y, m, d] = str.split('-').map(Number); return new Date(y, m - 1, d); }
+function calDiff(a, b) { return Math.round((calParse(b) - calParse(a)) / 86400000); }
+
+// 교육의 진행 기간: 회차 일자가 있으면 첫~마지막 회차, 없으면 시작/종료일시.
+function calRange(c) {
+  const dates = (c.sessions || []).flatMap(s => s.dates || []).filter(Boolean).sort();
+  if (dates.length) return { start: dates[0], end: dates[dates.length - 1], sessions: [...new Set(dates)] };
+  const start = c.startAt ? c.startAt.slice(0, 10) : '';
+  const end = c.endAt ? c.endAt.slice(0, 10) : start;
+  if (!start) return null;
+  return { start, end: end < start ? start : end, sessions: [] };
+}
+
+function calMove(delta) {
+  if (delta === 0) { calState.y = new Date().getFullYear(); calState.m = new Date().getMonth(); }
+  else { const d = new Date(calState.y, calState.m + delta, 1); calState.y = d.getFullYear(); calState.m = d.getMonth(); }
+  renderCalendar();
+}
+function calTogglePast(on) { calState.showPast = on; renderCalendar(); }
+
+function renderCalendar() {
+  const root = document.getElementById('calendar-view');
+  if (!root || currentTab !== 'calendar') return;
+  const { y, m } = calState;
+  const todayStr = calFmt(new Date());
+  const first = new Date(y, m, 1);
+  const gridStart = new Date(y, m, 1 - first.getDay());
+  const weekCount = Math.ceil((first.getDay() + new Date(y, m + 1, 0).getDate()) / 7);
+
+  const items = state.companies
+    .filter(c => calState.showPast || (!c.archived && c.trainingStatus !== '교육종료'))
+    .map(c => ({ c, r: calRange(c) }))
+    .filter(x => x.r)
+    .sort((a, b) => a.r.start.localeCompare(b.r.start) || a.r.end.localeCompare(b.r.end));
+  items.forEach((x, i) => { x.color = CAL_COLORS[i % CAL_COLORS.length]; });
+  const label = c => c.trainingName && c.trainingName !== c.name ? `${c.name} · ${c.trainingName}` : (c.name || '이름 없음');
+
+  const monthStart = calFmt(first), monthEnd = calFmt(new Date(y, m + 1, 0));
+  const inMonth = items.filter(x => x.r.start <= monthEnd && x.r.end >= monthStart);
+
+  let weeks = '';
+  for (let w = 0; w < weekCount; w++) {
+    const days = Array.from({ length: 7 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + w * 7 + i));
+    const ws = calFmt(days[0]), we = calFmt(days[6]);
+    // 이번 주에 걸치는 교육을 막대 구간으로 만들고, 겹치지 않게 줄(lane)에 배치
+    const segs = items.filter(x => x.r.start <= we && x.r.end >= ws).map(x => {
+      const s = Math.max(0, calDiff(ws, x.r.start)), e = Math.min(6, calDiff(ws, x.r.end));
+      return { x, s, e, contL: x.r.start < ws, contR: x.r.end > we };
+    }).sort((a, b) => a.s - b.s || b.e - a.e);
+    const laneEnds = [];
+    segs.forEach(sg => {
+      let lane = laneEnds.findIndex(end => end < sg.s);
+      if (lane === -1) { lane = laneEnds.length; laneEnds.push(-1); }
+      laneEnds[lane] = sg.e; sg.lane = lane;
+    });
+    const bars = segs.map(sg => {
+      const n = sg.e - sg.s + 1;
+      const stripes = sg.x.r.sessions.map(d => calDiff(ws, d)).filter(i => i >= sg.s && i <= sg.e)
+        .map(i => `<span class="cal-sess" style="left:${(i - sg.s) / n * 100}%; width:${100 / n}%;"></span>`).join('');
+      const rangeTxt = sg.x.r.start === sg.x.r.end ? sg.x.r.start : `${sg.x.r.start} ~ ${sg.x.r.end}`;
+      return `<div class="cal-bar${sg.contL ? ' cal-cont-l' : ''}${sg.contR ? ' cal-cont-r' : ''}" style="--cal-c:${sg.x.color}; grid-column:${sg.s + 1} / ${sg.e + 2}; grid-row:${sg.lane + 1};" title="${escHtml(label(sg.x.c))}\n${rangeTxt}" onclick="jumpToCompany(${sg.x.c.id})"><span class="cal-label">${escHtml(label(sg.x.c))}</span>${stripes}</div>`;
+    }).join('');
+    const bg = days.map(d => `<div class="${[0, 6].includes(d.getDay()) ? 'cal-wknd ' : ''}${calFmt(d) === todayStr ? 'cal-today' : ''}"></div>`).join('');
+    const nums = days.map(d => `<div class="${d.getMonth() !== m ? 'cal-other ' : ''}${calFmt(d) === todayStr ? 'cal-today' : ''}"><span>${d.getMonth() !== m || d.getDate() === 1 ? `${d.getMonth() + 1}/` : ''}${d.getDate()}</span></div>`).join('');
+    weeks += `<div class="cal-week"><div class="cal-week-bg">${bg}</div><div class="cal-week-nums">${nums}</div><div class="cal-lanes">${bars}</div></div>`;
+  }
+
+  const list = inMonth.length ? inMonth.map(x => {
+    const span = calDiff(x.r.start, x.r.end) + 1;
+    const range = x.r.start === x.r.end ? x.r.start : `${x.r.start} ~ ${x.r.end}`;
+    return `<div class="cal-list-row" style="--cal-c:${x.color};" onclick="jumpToCompany(${x.c.id})"><span class="cal-dot"></span><span class="cal-list-name">${escHtml(label(x.c))}</span><span class="cal-list-range">${range}</span><span class="cal-list-days">${x.r.sessions.length ? `${x.r.sessions.length}회 · ` : ''}${span}일</span></div>`;
+  }).join('') : `<div class="cal-empty">이 달에 진행되는 교육이 없습니다</div>`;
+
+  root.innerHTML = `
+    <div class="cal-head">
+      <button class="cal-nav-btn" onclick="calMove(-1)"><i class="ti ti-chevron-left"></i></button>
+      <div class="cal-title">${y}년 ${m + 1}월</div>
+      <button class="cal-nav-btn" onclick="calMove(1)"><i class="ti ti-chevron-right"></i></button>
+      <button class="cal-nav-btn" onclick="calMove(0)">오늘</button>
+      <label class="cal-opt"><input type="checkbox" ${calState.showPast ? 'checked' : ''} onchange="calTogglePast(this.checked)">종료된 교육도 표시</label>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-dow">${['일', '월', '화', '수', '목', '금', '토'].map(d => `<div>${d}</div>`).join('')}</div>
+      ${weeks}
+    </div>
+    <div class="cal-list">
+      <div class="cal-list-head">${m + 1}월 교육 목록<span>${inMonth.length}개 · 막대 아래 굵은 선은 실제 교육 진행일</span></div>
+      ${list}
+    </div>`;
 }
 
 function jumpToCompany(id) {
