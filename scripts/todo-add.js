@@ -9,6 +9,7 @@
  *   [{ "title": "TSP 일정확인", "company": "삼성전자", "due": "2026-10-01" }, ...]
  *   - company, due는 생략 가능 (due는 YYYY-MM-DD)
  *   - company는 칸반보드 기업명과 정확히 같으면 해당 교육 카드에 연결된다
+ *   - 특정 기업 업무가 아니면 company에 '공통' 또는 '기타' 태그를 넣는다
  *
  * 기존 할 일·교육 데이터는 건드리지 않고 todos 배열에 추가만 한다.
  * 열려 있는 웹앱 탭은 창에 다시 포커스될 때 새 항목을 자동으로 불러온다.
@@ -23,6 +24,7 @@ const ENV_PATH = path.join(ROOT, '.env');
 
 const [OWNER, ITEMS_PATH] = process.argv.slice(2);
 const DRY_RUN = process.argv.includes('--dry-run');
+const GENERAL_TAGS = ['공통', '기타']; // index.html의 TODO_GENERAL_TAGS와 같게 유지
 
 if (!OWNER || !ITEMS_PATH) {
   console.error('usage: node scripts/todo-add.js <담당자명> <items.json> [--dry-run]');
@@ -79,7 +81,7 @@ async function main() {
   for (const it of items) {
     const company = String(it.company || '').trim();
     const co = company ? companies.find(c => c.name === company) : null;
-    if (company && !co) unmatched.push(company);
+    if (company && !co && !GENERAL_TAGS.includes(company)) unmatched.push(company);
     const todo = {
       id: newId(), title: String(it.title).trim(), company, companyId: co ? co.id : null,
       due: it.due || '', done: false, createdAt: now, doneAt: null,
