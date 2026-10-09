@@ -270,6 +270,9 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .todo-del { flex-shrink: 0; background: none; border: none; padding: 2px; cursor: pointer; color: var(--text-tertiary); display: inline-flex; opacity: 0; transition: opacity 0.15s; }
 .todo-item:hover .todo-del, .todo-del:focus-visible { opacity: 1; }
 .todo-del:hover { color: var(--color-d-over); }
+.todo-edit-input { flex: 1; min-width: 0; box-sizing: border-box; padding: 3px 8px; font-size: 13px; font-family: var(--font-sans); border: 1px solid var(--border-primary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary); outline: none; }
+.todo-edit-del { flex-shrink: 0; background: none; border: 1px solid color-mix(in srgb, var(--color-d-over) 40%, transparent); border-radius: var(--radius-md); padding: 2px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 11px; color: var(--color-d-over); display: inline-flex; align-items: center; gap: 3px; }
+.todo-edit-del:hover { background: color-mix(in srgb, var(--color-d-over) 12%, transparent); }
 .todo-done-toggle { margin: 6px 16px 0; background: none; border: none; padding: 4px 0; font-family: var(--font-sans); font-size: 12px; color: var(--text-tertiary); cursor: pointer; display: flex; align-items: center; gap: 5px; }
 .todo-done-toggle:hover { color: var(--text-primary); }
 .todo-item.deleted .todo-title { color: var(--text-tertiary); }
@@ -1921,6 +1924,7 @@ let todoShowDone = false;
 let todoShowDeleted = false;
 const todoOpenMonths = new Set(); // 펼쳐 둔 지난 달 완료 묶음 ('YYYY-MM')
 const todoKnownIds = new Set();
+let todoEditingId = null; // 더블클릭으로 제목을 수정 중인 할 일
 
 const TODO_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const TODO_GENERAL_TAGS = ['공통', '기타']; // 특정 기업 업무가 아닌 할 일에 붙이는 태그
@@ -2065,14 +2069,33 @@ function setTodoDue(id, value) {
   renderTodos();
 }
 
+// 더블클릭하면 제목 자리에 입력칸과 삭제 버튼이 열린다. Enter·바깥 클릭은 저장, Esc는 취소.
 function editTodoTitle(id) {
-  const t = state.todos.find(t => t.id === id);
-  if (!t) return;
-  const v = prompt('할 일 수정', t.title);
-  if (v === null || !v.trim()) return;
-  t.title = v.trim();
-  saveState();
+  if (!state.todos.some(t => t.id === id)) return;
+  todoEditingId = id;
   renderTodos();
+  const input = document.getElementById('todo-edit-input');
+  if (input) { input.focus(); input.select(); }
+}
+
+function saveTodoTitle(id, value) {
+  if (todoEditingId !== id) return;
+  todoEditingId = null;
+  const t = state.todos.find(t => t.id === id);
+  const v = String(value || '').trim();
+  if (t && v && v !== t.title) { t.title = v; saveState(); }
+  renderTodos();
+}
+
+function todoEditKey(e, id) {
+  if (e.isComposing) return; // 한글 조합 중 Enter는 무시
+  if (e.key === 'Enter') { e.preventDefault(); saveTodoTitle(id, e.target.value); }
+  else if (e.key === 'Escape') { e.preventDefault(); todoEditingId = null; renderTodos(); }
+}
+
+function deleteEditingTodo(id) {
+  todoEditingId = null;
+  deleteTodo(id);
 }
 
 function jumpToTodoCompany(id) {
@@ -2107,14 +2130,18 @@ function todoItemHtml(t) {
     ? (co ? `<button type="button" class="todo-company" onclick="jumpToTodoCompany('${t.id}')" title="이 교육으로 이동">${escHtml(t.company)}</button>`
           : `<span class="todo-company plain${TODO_GENERAL_TAGS.includes(t.company) ? ' general' : ''}">${escHtml(t.company)}</span>`)
     : '';
-  return `<div class="todo-item${t.done ? ' done' : ''}">
+  const editing = todoEditingId === t.id;
+  return `<div class="todo-item${t.done ? ' done' : ''}${editing ? ' editing' : ''}">
     <button type="button" class="todo-check" onclick="toggleTodoDone('${t.id}')" aria-label="${t.done ? '완료 취소' : '완료'}" title="${t.done ? '완료 취소' : '완료'}">${t.done ? '<i class="ti ti-check"></i>' : ''}</button>
     ${companyHtml}
-    <span class="todo-title" ondblclick="editTodoTitle('${t.id}')" title="더블클릭하면 수정">${escHtml(t.title)}</span>
+    ${editing
+      ? `<input type="text" id="todo-edit-input" class="todo-edit-input" value="${escAttr(t.title)}" onkeydown="todoEditKey(event, '${t.id}')" onblur="saveTodoTitle('${t.id}', this.value)" aria-label="할 일 수정" />
+    <button type="button" class="todo-edit-del" onmousedown="event.preventDefault()" onclick="deleteEditingTodo('${t.id}')" title="이 할 일 삭제 ('삭제한 일'에서 복원 가능)"><i class="ti ti-trash"></i>삭제</button>`
+      : `<span class="todo-title" ondblclick="editTodoTitle('${t.id}')" title="더블클릭하면 수정·삭제">${escHtml(t.title)}</span>`}
     ${t.due ? `<span class="todo-due">${t.done ? '마감 ' : ''}${todoDueLabel(t.due)}</span>${t.done ? '' : todoDTag(t.due)}` : ''}
     ${t.done && todoDoneTime(t.doneAt) ? `<span class="todo-done-time" title="완료한 시각">${todoDoneTime(t.doneAt)} 완료</span>` : ''}
     <input type="date" class="todo-date-input" value="${escAttr(t.due || '')}" onchange="setTodoDue('${t.id}', this.value)" title="마감일 변경" aria-label="마감일 변경" />
-    <button type="button" class="todo-del" onclick="deleteTodo('${t.id}')" title="삭제" aria-label="삭제"><i class="ti ti-x"></i></button>
+    ${editing ? '' : `<button type="button" class="todo-del" onclick="deleteTodo('${t.id}')" title="삭제" aria-label="삭제"><i class="ti ti-x"></i></button>`}
   </div>`;
 }
 
@@ -2262,7 +2289,14 @@ function renderTodos() {
     html += `<button type="button" class="todo-done-toggle" onclick="todoShowDeleted = !todoShowDeleted; renderTodos();"><i class="ti ti-chevron-${todoShowDeleted ? 'up' : 'down'}"></i>삭제한 일 ${deleted.length}개 ${todoShowDeleted ? '숨기기' : '보기'}</button>`;
     if (todoShowDeleted) html += deleted.map(todoDeletedItemHtml).join('');
   }
+  const editInput = document.getElementById('todo-edit-input');
+  const editDraft = editInput && todoEditingId ? { value: editInput.value, focused: document.activeElement === editInput } : null;
   body.innerHTML = html;
+  const newEditInput = document.getElementById('todo-edit-input');
+  if (editDraft && newEditInput) {
+    newEditInput.value = editDraft.value;
+    if (editDraft.focused) newEditInput.focus();
+  }
 }
 
 function renderTodoParsePreview() {
