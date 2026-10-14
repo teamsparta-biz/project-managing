@@ -1104,8 +1104,22 @@ async function loadState() {
   return DEFAULT_STATE();
 }
 
+// 저장은 한 번에 하나씩만 보낸다. 응답이 오기 전에 다음 저장이 같은 base로 나가면
+// 서버가 409(충돌)로 거절해, 내가 한 연속 수정이 "다른 곳에서 갱신됨"으로 오인된다.
+let persisting = false;
+let persistQueued = false;
 async function persistNow() {
   if (stateStale) return;
+  if (persisting) { persistQueued = true; return; }
+  persisting = true;
+  try { await persistOnce(); }
+  finally {
+    persisting = false;
+    if (persistQueued && !stateStale) { persistQueued = false; persistNow(); }
+  }
+}
+
+async function persistOnce() {
   const payload = state;
   let apiOk = false;
 
@@ -1151,7 +1165,7 @@ function showSaveError() {
 function saveState() {
   isDirty = true;
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { persistNow(); }, 300);
+  saveTimer = setTimeout(() => { saveTimer = null; persistNow(); }, 300);
 }
 
 function showSaveIndicator() {
@@ -2406,7 +2420,7 @@ async function pullRemoteTodos() {
     // 저장 대기 중인 수정이 없으면 조용히 새로고침하고, 있으면 덮어쓰지 않도록 경고만 띄운다.
     const remoteVersion = res.headers.get('X-State-Version') || '';
     if (stateVersion && remoteVersion && !sameVersion(remoteVersion, stateVersion)) {
-      if (!isDirty && !saveTimer && !document.querySelector('#modal-root .modal-overlay') && pageOpenId == null) location.reload();
+      if (!isDirty && !saveTimer && !persisting && !persistQueued && !document.querySelector('#modal-root .modal-overlay') && pageOpenId == null) location.reload();
       else showStaleBanner();
       return;
     }
