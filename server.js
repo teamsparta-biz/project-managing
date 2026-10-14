@@ -112,6 +112,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Expose-Headers', 'X-State-Version');
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   const { pathname } = url.parse(req.url);
@@ -121,6 +122,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       try {
         if (fs.existsSync(DATA_FILE)) {
+          res.setHeader('X-State-Version', String(fs.statSync(DATA_FILE).mtimeMs));
           json(res, 200, JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));
         } else { json(res, 200, null); }
       } catch (e) { json(res, 500, { error: e.message }); }
@@ -129,8 +131,14 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST') {
       try {
         const body = await readBody(req);
+        const base = url.parse(req.url, true).query.base;
+        // 불러온 뒤 파일이 다른 경로(동기화 스크립트 등)로 바뀌었으면 덮어쓰지 않는다
+        if (base && fs.existsSync(DATA_FILE) && String(fs.statSync(DATA_FILE).mtimeMs) !== base) {
+          json(res, 409, { error: 'conflict', message: '다른 곳에서 데이터가 먼저 갱신되었습니다.' });
+          return;
+        }
         fs.writeFileSync(DATA_FILE, JSON.stringify(JSON.parse(body), null, 2), 'utf8');
-        json(res, 200, { ok: true });
+        json(res, 200, { ok: true, version: String(fs.statSync(DATA_FILE).mtimeMs) });
       } catch (e) { json(res, 500, { error: e.message }); }
       return;
     }

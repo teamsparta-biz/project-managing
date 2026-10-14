@@ -97,6 +97,8 @@ body { font-family: var(--font-sans); background: var(--bg-primary); color: var(
 .save-indicator.visible { opacity: 1; transform: translateY(0); }
 .save-indicator.error { color: var(--text-danger); background: color-mix(in srgb, var(--text-danger) 14%, transparent); }
 .save-indicator i { font-size: 13px; }
+.stale-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 10px 16px; font-size: 13px; color: #fff; background: var(--text-danger, #C8192E); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.stale-banner button { font: inherit; padding: 3px 12px; border-radius: 6px; border: 1px solid #fff; background: #fff; color: var(--text-danger, #C8192E); cursor: pointer; }
 .user-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; font-size: 12px; font-family: var(--font-sans); font-weight: 500; background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-secondary); border-radius: 999px; cursor: pointer; }
 .user-badge:hover { background: var(--bg-secondary); color: var(--text-primary); }
 .user-badge i { font-size: 13px; }
@@ -132,14 +134,14 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .section-edu-before { background: color-mix(in srgb, var(--color-section-before) 12%, transparent) !important; color: var(--color-section-before) !important; }
 .section-edu-after { background: color-mix(in srgb, var(--color-section-after) 12%, transparent) !important; color: var(--color-section-after) !important; }
 
-.row-name { text-align: left; padding: 14px 16px; min-width: 260px; max-width: 300px; background: var(--bg-primary); position: sticky; left: 0; z-index: 2; vertical-align: top; }
+.row-name { text-align: left; padding: 12px 12px; min-width: 210px; max-width: 230px; background: var(--bg-primary); position: sticky; left: 0; z-index: 2; vertical-align: top; }
 .row-name input.company-input { width: 100%; border: 1px solid transparent; background: transparent; font-weight: 500; font-size: 14px; color: var(--text-primary); font-family: var(--font-sans); outline: none; padding: 5px 7px; border-radius: 4px; margin-bottom: 6px; }
 .row-name input.company-input:focus, .row-name input.company-input:hover { background: var(--bg-secondary); border-color: var(--border-tertiary); }
 
-.task-cell { width: 54px; min-width: 54px; cursor: pointer; padding: 10px 4px; transition: background 0.15s; display: table-cell; }
+.task-cell { width: 46px; min-width: 46px; cursor: pointer; padding: 10px 4px; transition: background 0.15s; display: table-cell; }
 .task-cell:hover { background: var(--bg-secondary); }
 .cell-label { display: block; font-size: 10px; color: var(--text-tertiary); opacity: 0.6; margin-top: 5px; line-height: 1.3; word-break: keep-all; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.task-th { min-width: 76px; max-width: 110px; vertical-align: top; padding-top: 8px !important; padding-bottom: 6px !important; cursor: grab; user-select: none; position: relative; }
+.task-th { min-width: 58px; max-width: 84px; vertical-align: top; padding-top: 8px !important; padding-bottom: 6px !important; cursor: grab; user-select: none; position: relative; }
 .task-th:active { cursor: grabbing; }
 .task-th.dragging { opacity: 0.35; cursor: grabbing; }
 .task-th.drop-before::before { content: ''; position: absolute; left: -2px; top: 0; bottom: 0; width: 3px; background: var(--color-section-before); border-radius: 2px; z-index: 5; }
@@ -153,7 +155,14 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .task-th-btn { background: transparent; border: none; cursor: pointer; padding: 3px 5px; color: var(--text-tertiary); font-size: 11px; border-radius: 3px; line-height: 1; }
 .task-th-btn:hover { background: var(--bg-primary); color: var(--text-primary); }
 .task-th-btn-del:hover { color: var(--text-danger); background: color-mix(in srgb, var(--text-danger) 12%, transparent); }
-.add-task-th { min-width: 54px; }
+.add-task-th { min-width: 46px; }
+.fold-th { width: 56px; min-width: 56px; cursor: pointer; vertical-align: middle; color: var(--color-status-done); background: color-mix(in srgb, var(--color-status-done) 10%, var(--bg-secondary)) !important; font-weight: 500; }
+.fold-th:hover { background: color-mix(in srgb, var(--color-status-done) 18%, var(--bg-secondary)) !important; }
+.fold-th .fold-count { display: block; font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+.fold-th i { font-size: 16px; }
+.fold-cell { background: color-mix(in srgb, var(--color-status-done) 12%, transparent); color: var(--color-status-done); font-size: 17px; padding: 10px 4px; width: 56px; }
+.fold-toggle { background: transparent; border: 1px solid var(--border-secondary); border-radius: 999px; padding: 2px 10px; font-size: 11px; font-family: var(--font-sans); color: var(--text-secondary); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.fold-toggle:hover { background: var(--bg-secondary); color: var(--text-primary); }
 .add-task-btn { background: transparent; border: 1px dashed var(--border-secondary); border-radius: var(--radius-md); padding: 9px 11px; color: var(--text-tertiary); cursor: pointer; font-size: 14px; font-family: var(--font-sans); line-height: 1; }
 .add-task-btn:hover { color: var(--text-primary); border-color: var(--border-primary); background: var(--bg-primary); }
 
@@ -690,7 +699,8 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
       <span class="legend-item"><span class="legend-dot legend-dot-0">○</span>미시작</span>
       <span class="legend-item"><span class="legend-dot legend-dot-1"><i class="ti ti-dots"></i></span>진행 중</span>
       <span class="legend-item"><span class="legend-dot legend-dot-2"><i class="ti ti-check"></i></span>완료</span>
-      <span class="legend-item" style="margin-left: auto;"><i class="ti ti-info-circle"></i>셀 클릭으로 상태 순환</span>
+      <span class="legend-item" style="margin-left: auto;"><button type="button" class="fold-toggle" id="fold-toggle" onclick="toggleFoldDone()"></button></span>
+      <span class="legend-item"><i class="ti ti-info-circle"></i>셀 클릭으로 상태 순환</span>
     </div>
     <div class="hint">
       업무명을 <strong>더블클릭</strong>하면 수정할 수 있고, X 아이콘으로 삭제할 수 있습니다 · 업무 헤더를 좌우로 <strong>드래그</strong>하면 순서를 바꿀 수 있습니다 · 마감일은 D-3 이내면 주황색, 지난 날짜는 빨간색으로 표시됩니다 · 모든 변경 사항은 자동으로 저장됩니다
@@ -1048,11 +1058,35 @@ function applyNotesHistoryValue(value) {
 // ─────────────────────────────────────────────────────────────
 // 저장소 (로컬 서버 API → localStorage 폴백)
 // ─────────────────────────────────────────────────────────────
+// 이 화면이 불러온 서버 데이터의 버전. 저장할 때 base로 보내, 그 사이 서버가 바뀌었으면(동기화 등)
+// 서버가 409로 거절한다 — 오래된 화면이 새 데이터를 통째로 덮어쓰는 사고를 막는다.
+let stateVersion = '';
+let stateStale = false;
+// 서버가 돌려주는 시각 표기("…Z" / "…+00:00")가 달라도 같은 순간이면 같은 버전으로 본다
+function sameVersion(a, b) {
+  if (a === b) return true;
+  const x = Date.parse(a), y = Date.parse(b);
+  return !isNaN(x) && x === y;
+}
+
+function showStaleBanner() {
+  stateStale = true;
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  if (document.getElementById('stale-banner')) return;
+  const el = document.createElement('div');
+  el.id = 'stale-banner';
+  el.className = 'stale-banner';
+  el.innerHTML = '<span><i class="ti ti-alert-triangle"></i> 다른 곳에서 데이터가 갱신되어 이 화면은 최신이 아닙니다. 이 화면의 수정은 저장되지 않습니다.</span><button onclick="location.reload()">새로고침</button>';
+  document.body.appendChild(el);
+}
+
 async function loadState() {
   try {
     const res = await fetch('/api/state?owner=' + encodeURIComponent(getCurrentOwner()));
     if (res.ok) {
       const data = await res.json();
+      stateVersion = res.headers.get('X-State-Version') || '';
+      stateStale = false;
       if (data && data.tasks && data.companies) return data;
     }
   } catch (err) {
@@ -1071,16 +1105,22 @@ async function loadState() {
 }
 
 async function persistNow() {
+  if (stateStale) return;
   const payload = state;
   let apiOk = false;
 
   try {
-    const res = await fetch('/api/state?owner=' + encodeURIComponent(getCurrentOwner()), {
+    const res = await fetch('/api/state?owner=' + encodeURIComponent(getCurrentOwner()) + (stateVersion ? '&base=' + encodeURIComponent(stateVersion) : ''), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     apiOk = res.ok;
+    if (res.status === 409) { showStaleBanner(); return; }
+    if (res.ok) {
+      const r = await res.json().catch(() => null);
+      if (r && r.version) stateVersion = r.version;
+    }
   } catch (err) {
     console.warn('API 저장 실패:', err);
   }
@@ -1290,18 +1330,53 @@ function parseDatetimeLocal(dtStr) {
 // ─────────────────────────────────────────────────────────────
 // 렌더링
 // ─────────────────────────────────────────────────────────────
+let foldDone = (() => { try { return localStorage.getItem('training_fold_done') !== '0'; } catch (e) { return true; } })();
+
+// 현재 탭의 모든 교육이 완료한 업무 id (접기 대상)
+function foldedTaskIds() {
+  if (!foldDone) return new Set();
+  const list = companiesForTab(currentTab);
+  if (!list.length) return new Set();
+  return new Set(state.tasks.filter(t => list.every(c => (c.status && c.status[t.id]) === 2)).map(t => t.id));
+}
+
+function toggleFoldDone() {
+  foldDone = !foldDone;
+  try { localStorage.setItem('training_fold_done', foldDone ? '1' : '0'); } catch (e) {}
+  renderHead(); renderBody();
+}
+
+function updateFoldToggle(foldedCount) {
+  const btn = document.getElementById('fold-toggle');
+  if (!btn) return;
+  const total = state.tasks.length;
+  const allDoneCount = foldDone ? foldedCount : (() => {
+    const list = companiesForTab(currentTab);
+    return list.length ? state.tasks.filter(t => list.every(c => (c.status && c.status[t.id]) === 2)).length : 0;
+  })();
+  btn.style.display = allDoneCount ? '' : 'none';
+  btn.innerHTML = foldDone
+    ? `<i class="ti ti-layout-sidebar-left-expand"></i>완료 업무 ${foldedCount}개 펼치기`
+    : `<i class="ti ti-layout-sidebar-left-collapse"></i>완료 업무 ${allDoneCount}개 접기`;
+}
+
 function renderHead() {
   const sectionRow = document.getElementById('head-section');
   const taskRow = document.getElementById('head-tasks');
-  const beforeCount = state.tasks.filter(t => t.section === 'before').length;
-  const afterCount = state.tasks.filter(t => t.section === 'after').length;
+  const folded = foldedTaskIds();
+  const shownTasks = state.tasks.filter(t => !folded.has(t.id));
+  const beforeCount = shownTasks.filter(t => t.section === 'before').length;
+  const afterCount = shownTasks.filter(t => t.section === 'after').length;
+  updateFoldToggle(folded.size);
+  const foldTitle = state.tasks.filter(t => folded.has(t.id)).map(t => t.label).join(', ');
   sectionRow.innerHTML = `
     <th rowspan="2" class="row-name" style="background: var(--bg-secondary); position: sticky; left: 0; z-index: 6;">기업 정보</th>
+    ${folded.size ? `<th rowspan="2" class="fold-th" onclick="toggleFoldDone()" title="${escAttr('모든 교육에서 완료: ' + foldTitle + ' (클릭해서 펼치기)')}"><i class="ti ti-circle-check"></i><span class="fold-count">완료 ${folded.size}</span></th>` : ''}
     ${beforeCount ? `<th colspan="${beforeCount}" class="section-head section-edu-before"><i class="ti ti-clipboard-list" style="font-size:13px; vertical-align:-1px; margin-right:5px;"></i>교육 전</th>` : ''}
     ${afterCount ? `<th colspan="${afterCount}" class="section-head section-edu-after"><i class="ti ti-clipboard-check" style="font-size:13px; vertical-align:-1px; margin-right:5px;"></i>교육 후</th>` : ''}
     <th rowspan="2" class="add-task-th"><button class="add-task-btn" onclick="openTaskModal()" title="업무 추가">＋</button></th>
   `;
-  taskRow.innerHTML = state.tasks.map(t =>
+  taskRow.innerHTML = shownTasks.map(t =>
     `<th class="task-th" draggable="true" data-task-id="${t.id}" title="${escAttr(t.label)} (더블클릭으로 수정, 드래그로 순서 변경)" ondblclick="editTask('${t.id}')">
       <span class="drag-handle"><i class="ti ti-grip-horizontal"></i></span>
       <div class="task-th-inner">${escHtml(t.label)}</div>
@@ -1316,7 +1391,9 @@ function renderHead() {
 
 function renderBody() {
   const tbody = document.getElementById('tbody');
-  const colCount = state.tasks.length + 2;
+  const folded = foldedTaskIds();
+  const shownTasks = state.tasks.filter(t => !folded.has(t.id));
+  const colCount = shownTasks.length + (folded.size ? 1 : 0) + 2;
   const visible = companiesForTab(currentTab)
     .sort((a, b) => {
       const getEarliestDate = c => {
@@ -1341,7 +1418,8 @@ function renderBody() {
   tbody.innerHTML = visible.map(c => {
     // 사용자가 직접 회차를 이동하지 않았다면, 오늘 기준 가장 가까운 회차를 기본 표시
     if (sessionNav[c.id] === undefined) sessionNav[c.id] = defaultSessionIdx(c);
-    const cells = state.tasks.map(t => {
+    const foldCell = folded.size ? `<td class="fold-cell"><i class="ti ti-check"></i></td>` : '';
+    const cells = foldCell + shownTasks.map(t => {
       const status = (c.status && c.status[t.id]) || 0;
       const icon = status === 0 ? '○' : (status === 1 ? '<i class="ti ti-dots"></i>' : '<i class="ti ti-check"></i>');
       const label = status === 0 ? `<span class="cell-label">${escHtml(t.label)}</span>` : '';
@@ -1355,7 +1433,7 @@ function renderBody() {
     const totalPct = Math.round((done + partial * 0.5) / total * 100);
     const tsCls = { '': 'ts-none', '세팅중': 'ts-setting', '교육중': 'ts-active', '교육종료': 'ts-ended' }[c.trainingStatus || ''] || 'ts-none';
     const tsLabel = c.trainingStatus || '미설정';
-    const taskColCount = state.tasks.length + 1;
+    const taskColCount = shownTasks.length + (folded.size ? 1 : 0) + 1;
     return `<tr id="company-row-${c.id}">
       <td class="row-name" rowspan="2">
         <input type="text" class="company-input" value="${escAttr(c.name)}" onchange="updateField(${c.id}, 'name', this.value)" placeholder="기업명" />
@@ -2324,6 +2402,14 @@ async function pullRemoteTodos() {
   try {
     const res = await fetch('/api/state?owner=' + encodeURIComponent(getCurrentOwner()));
     if (!res.ok) return;
+    // 서버 데이터가 이 화면이 불러온 뒤 바뀌었다면 이 화면은 오래된 것이다.
+    // 저장 대기 중인 수정이 없으면 조용히 새로고침하고, 있으면 덮어쓰지 않도록 경고만 띄운다.
+    const remoteVersion = res.headers.get('X-State-Version') || '';
+    if (stateVersion && remoteVersion && !sameVersion(remoteVersion, stateVersion)) {
+      if (!isDirty && !saveTimer && !document.querySelector('#modal-root .modal-overlay') && pageOpenId == null) location.reload();
+      else showStaleBanner();
+      return;
+    }
     const remote = await res.json();
     mergeRemotePages(remote);
     const incoming = (remote && Array.isArray(remote.todos) ? remote.todos : []).filter(t => t && t.id && !todoKnownIds.has(t.id));
@@ -3567,11 +3653,11 @@ document.getElementById('completed-notes').addEventListener('input', e => {
 // 서버 데이터를 오래된 화면 상태로 덮어쓰는 것을 방지 (새로고침으로만 최신 데이터 반영)
 function flushSave() {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-  if (!isDirty) return;
+  if (!isDirty || stateStale) return;
   isDirty = false;
   const payload = JSON.stringify(state);
   try {
-    const url = '/api/state?owner=' + encodeURIComponent(getCurrentOwner());
+    const url = '/api/state?owner=' + encodeURIComponent(getCurrentOwner()) + (stateVersion ? '&base=' + encodeURIComponent(stateVersion) : '');
     navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
   } catch (e) {}
   try { localStorage.setItem(getStorageKey(), payload); } catch (e) {}
