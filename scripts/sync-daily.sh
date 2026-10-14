@@ -4,7 +4,8 @@
 
 set -u
 
-PROJECT_DIR="/Users/teamsparta/Documents/Project_managing_tool"
+# 스크립트 위치 기준 — launchd는 ~/Documents를 못 읽으므로 스케줄은 ~/sync-runner(복사본)에서 실행한다
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CLAUDE_BIN="/Users/teamsparta/.aegis/bin/claude"
 LOG="$HOME/Library/Logs/sync-ax-hub.log"
 PATH="/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
@@ -19,6 +20,11 @@ cd "$PROJECT_DIR" || { echo "[$(date '+%F %T')] 프로젝트 폴더 없음: $PRO
 
 echo "" >> "$LOG"
 echo "===== [$(date '+%F %T')] 교육 가져오기 시작 (담당자: $OWNER)$DRY =====" >> "$LOG"
+
+# 복사본(SYNC_PULL=1)은 실행 전에 최신 스킬·스크립트로 맞춘다
+if [[ "${SYNC_PULL:-}" == "1" ]]; then
+  git pull --ff-only >> "$LOG" 2>&1 || echo "[$(date '+%F %T')] git pull 실패 — 기존 버전으로 진행" >> "$LOG"
+fi
 
 "$CLAUDE_BIN" -p "/sync-ax-hub 담당자:${OWNER}${DRY}" \
   --permission-mode acceptEdits \
