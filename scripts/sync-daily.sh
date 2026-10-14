@@ -1,10 +1,10 @@
 #!/bin/zsh
-# 교육 가져오기(ax-hub → 웹앱) 자동 실행 — launchd에서 매일 오전 10시 호출
+# 교육 가져오기(ax-hub → 웹앱) 자동 실행 — launchd에서 평일 오전 10시·오후 1시·오후 5시 호출
 # 수동 실행: scripts/sync-daily.sh [담당자이름] [--dry-run]
 
 set -u
 
-PROJECT_DIR="/Users/teamsparta/Library/CloudStorage/GoogleDrive-chanho.song@teamsparta.co/내 드라이브/Project_managing_tool"
+PROJECT_DIR="/Users/teamsparta/Documents/Project_managing_tool"
 CLAUDE_BIN="/Users/teamsparta/.aegis/bin/claude"
 LOG="$HOME/Library/Logs/sync-ax-hub.log"
 PATH="/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"

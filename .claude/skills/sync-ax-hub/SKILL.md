@@ -27,8 +27,13 @@ description: "ax-hub에서 담당자 이름 기준으로 교육 목록을 조회
 [2] Write 도구로 payload를 data\.sync_payload_<담당자>.txt 에 그대로 저장
 [3] node scripts/sync-ax-hub.js "<담당자>" "data/.sync_payload_<담당자>.txt"
     → 스크립트가 Supabase GET(기준) → 병합 → state.json 저장 → 동시편집 확인 → POST → 요약 출력
-[4] 스크립트 출력 요약을 사용자에게 정리해 보고
+[4] 스크립트가 끝에 출력하는 "검증" 결과(ax-hub 진행 대상 N건 / 칸반 반영 N건)를 확인
+[5] 사용자에게 정리해 보고 + 열려 있던 칸반보드 탭은 새로고침(F5)하도록 안내
 ```
+
+- **시작 전 안내**: 열려 있는 칸반보드 탭이 있으면 먼저 닫거나 새로고침하게 한다. 웹앱은 이제 오래된 화면의 저장을 서버가 거절(409)하지만, 이 보호가 없는 예전 탭이 남아 있으면 동기화 결과를 옛 상태로 덮어쓸 수 있다(2026-10-13 실제 사고: 아이마켓코리아 등 2건이 동기화 직후 사라짐).
+- 검증은 교육 누락·보관 상태뿐 아니라 일정(날짜·시간), 일자별 강사·튜터, 기업명·교육명·교안 링크·장소·담당자를 ax-hub 값과 필드별로 대조한다. 어긋난 항목은 `칸반 값 / ax-hub 값`으로 표시된다.
+- 스크립트 끝의 검증이 ❌이면(exit 3) 누락·불일치 목록을 그대로 보고하고, 다시 한 번 실행한다.
 
 - 인수에서 `담당자:이름` → `OWNER_NAME`. 없으면 사용자에게 물어본다.
 - 사용자 확인 없이 바로 적용한다(자동 적용).
@@ -129,7 +134,7 @@ node scripts/sync-ax-hub.js "송찬호" "data/.sync_payload_송찬호.txt"
 
 - **기준 로드**: Supabase `user_states`에서 현재 state를 GET. `updated_at`을 기준 시각으로 잡고 로컬 파일은 `.bak`으로 백업. Supabase에 데이터가 없으면 로컬 `state.json`을 기준으로 쓴다.
 - **사실 정보 갱신**: `name`·`trainingName`·`instructorName`·`tutorName`·`sessions`·`startAt`·`endAt`·`workbookUrl`·`trainingStatus`·`archived`·`inviteEmails`(노션 초대용 강사·기술튜터 이메일 배열)
-- **빈 값만 채움**: `location`·`contactName`·`contactPosition`·`contactEmail` — 기존 값이 있으면 유지 (사용자가 웹앱에서 직접 입력한 축약 장소 등을 보존)
+- **ax-hub 값으로 덮어씀(ax-hub 기준)**: `location`·`contactName`·`contactPosition`·`contactEmail` — ax-hub 값이 있으면 칸반 값을 덮어쓰고, ax-hub 값이 비어 있을 때만 기존 칸반 값을 유지
 - **업무 내용 보존**: `status`·`memo`·`deadline`·최상위 `notes` 계열은 손대지 않음
 - **신규 추가**: `id` = 현재 최대 id + 1, `ax_hub_course_id` 기록, `status`는 현재 tasks 전부 0
 - **보관 처리**: `A` 줄에 해당하는 항목은 `archived=true`만 설정하고 나머지 필드는 건드리지 않음
@@ -145,6 +150,16 @@ node scripts/sync-ax-hub.js "송찬호" "data/.sync_payload_송찬호.txt"
 
 ---
 
+## 사후 재검증 (선택, 동기화 1~2분 뒤)
+
+반영 직후 검증은 통과해도 그 뒤에 옛 탭이 덮어쓸 수 있으므로, 사용자가 "빠진 게 있다"고 하거나 확실히 하고 싶으면 병합 없이 대조만 다시 한다. payload 파일은 그대로 재사용한다(필요하면 1단계 SQL부터 다시).
+
+```bash
+node scripts/sync-ax-hub.js "송찬호" "data/.sync_payload_송찬호.txt" --verify
+```
+
+---
+
 ## 4단계: 결과 보고
 
 스크립트 출력을 아래 형식으로 정리해 보고한다.
@@ -155,6 +170,8 @@ node scripts/sync-ax-hub.js "송찬호" "data/.sync_payload_송찬호.txt"
 신규 추가: N건 / 정보 갱신: N건 / 변경 없음: N건
 중단(stopped)으로 삭제: N건
 확인 필요(다른 담당자로 보임): N건  ← 삭제하지 않음, 목록만 안내
+
+검증: ax-hub 진행 대상 N건 / 칸반 반영 N건 — 빠진 교육 없음 (또는 누락 목록)
 
 브라우저에서 F5를 누르면 업데이트된 내용을 확인할 수 있습니다.
 ```

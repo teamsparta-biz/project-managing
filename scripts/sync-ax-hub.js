@@ -4,6 +4,7 @@
  *
  * 사용법:
  *   node scripts/sync-ax-hub.js <담당자명> <payload파일경로> [--dry-run]
+ *   node scripts/sync-ax-hub.js <담당자명> <payload파일경로> --verify   ← 병합 없이 Supabase와 ax-hub 대조만
  *
  * payload 파일 형식 (줄 단위, `|` 구분 — /sync-ax-hub 스킬의 단일 SQL이 생성):
  *   C|<course_id(full uuid)>|<기업명>|<교육명>|<status>|<장소>|<교안URL>|<담당자명>|<직책>|<이메일>|<초대이메일1,초대이메일2,...>
@@ -24,9 +25,10 @@ const ENV_PATH = path.join(ROOT, '.env');
 
 const [OWNER, PAYLOAD_PATH] = process.argv.slice(2);
 const DRY_RUN = process.argv.includes('--dry-run');
+const VERIFY_ONLY = process.argv.includes('--verify');
 
 if (!OWNER || !PAYLOAD_PATH) {
-  console.error('usage: node scripts/sync-ax-hub.js <담당자명> <payload파일경로> [--dry-run]');
+  console.error('usage: node scripts/sync-ax-hub.js <담당자명> <payload파일경로> [--dry-run|--verify]');
   process.exit(1);
 }
 
@@ -36,8 +38,8 @@ const STATUS_MAP = { setup: '세팅중', operation: '교육중' };
 // 사실 정보(ax-hub 기준으로 덮어쓰는 필드)
 const FACT_FIELDS = ['name', 'trainingName', 'instructorName', 'tutorName',
   'sessions', 'startAt', 'endAt', 'workbookUrl', 'trainingStatus', 'archived', 'inviteEmails'];
-// 빈 값일 때만 채우는 필드 (사용자가 웹앱에서 직접 입력한 값을 덮어쓰지 않음)
-const FILL_IF_EMPTY = ['location', 'contactName', 'contactPosition', 'contactEmail'];
+// ax-hub 값이 있으면 그 값으로 덮어쓰는 필드 (ax-hub 기준). ax-hub 값이 비어 있을 때만 칸반 값을 유지한다.
+const OVERWRITE_IF_PRESENT = ['location', 'contactName', 'contactPosition', 'contactEmail'];
 
 function loadEnv() {
   const env = {};
@@ -121,9 +123,53 @@ async function sbGet(env, select) {
   return res.json();
 }
 
+// ax-hub 기준(payload)과 Supabase 현재 상태를 새로 조회해 대조한다.
+// 누락(ax-hub엔 진행 중인데 칸반에 없음)·중단 잔존·상태/일정 불일치를 찾아 보고한다. 문제가 있으면 false.
+async function verifyAgainstSupabase(env, payload) {
+  const rows = await sbGet(env, 'data,updated_at');
+  if (!rows.length || !rows[0].data) { console.log('❌ 검증 실패 — Supabase에 데이터가 없음'); return false; }
+  const cs = rows[0].data.companies || [];
+  const byId = new Map(cs.filter(c => c.ax_hub_course_id).map(c => [c.ax_hub_course_id, c]));
+  const problems = [];
+  for (const [cid, meta] of payload.courses) {
+    const co = byId.get(cid);
+    const label = `${meta.client} | ${meta.training}`;
+    if (!co) { problems.push(`누락: ${label}`); continue; }
+    if (co.archived) problems.push(`보관 상태로 표시됨(진행 중이어야 함): ${label}`);
+    // ax-hub 기준 값과 칸반 값을 필드별로 대조한다 (일정 일수만이 아니라 날짜·시간·인원까지)
+    const wantRows = payload.sessions.get(cid.slice(0, 8)) || [];
+    const haveByDate = new Map((co.sessions || []).filter(x => (x.dates || [])[0]).map(x => [x.dates[0], x]));
+    const diffs = [];
+    if (haveByDate.size !== wantRows.length) diffs.push(`일정 일수(칸반 ${haveByDate.size} / ax-hub ${wantRows.length})`);
+    const names = v => [...new Set((v || '').split(',').map(x => x.trim()).filter(Boolean))].sort().join(',');
+    for (const r of wantRows) {
+      const have = haveByDate.get(r.date);
+      if (!have) { diffs.push(`${r.date} 일정 없음`); continue; }
+      if (have.startTime !== hhmm(r.st) || have.endTime !== hhmm(r.et)) diffs.push(`${r.date} 시간(칸반 ${have.startTime}~${have.endTime} / ax-hub ${hhmm(r.st)}~${hhmm(r.et)})`);
+      if (names(have.instructorName) !== names(r.ins)) diffs.push(`${r.date} 강사(칸반 ${have.instructorName || '-'} / ax-hub ${r.ins || '-'})`);
+      if (names(have.tutorName) !== names(r.tut)) diffs.push(`${r.date} 튜터(칸반 ${have.tutorName || '-'} / ax-hub ${r.tut || '-'})`);
+    }
+    if (co.name !== meta.client) diffs.push('기업명');
+    if (co.trainingName !== meta.training) diffs.push('교육명');
+    if ((co.workbookUrl || '') !== meta.workbook) diffs.push('교안 링크');
+    for (const f of OVERWRITE_IF_PRESENT) if (meta[f] && co[f] !== meta[f]) diffs.push(`${f}(칸반 ${co[f] || '-'} / ax-hub ${meta[f]})`);
+    if (diffs.length) problems.push(`불일치 — ${label}\n      ${diffs.join('\n      ')}`);
+  }
+  for (const cid of payload.stoppedOwned) {
+    const left = cs.find(c => c.ax_hub_course_id && c.ax_hub_course_id.startsWith(cid));
+    if (left) problems.push(`중단된 교육이 남아 있음: ${left.name} | ${left.trainingName}`);
+  }
+  console.log(`\n=== 검증 (Supabase 재조회, updated_at ${rows[0].updated_at}) ===`);
+  console.log(`ax-hub 진행 대상 ${payload.courses.size}건 / 칸반 반영 ${[...payload.courses.keys()].filter(k => byId.has(k)).length}건 (칸반 전체 ${cs.length}건)`);
+  if (problems.length) { console.log('❌ 문제 ' + problems.length + '건\n' + problems.map(x => '  - ' + x).join('\n')); return false; }
+  console.log('✅ 빠진 교육 없음');
+  return true;
+}
+
 async function main() {
   const env = loadEnv();
   const payload = parsePayload(fs.readFileSync(PAYLOAD_PATH, 'utf8'));
+  if (VERIFY_ONLY) { process.exit((await verifyAgainstSupabase(env, payload)) ? 0 : 3); }
 
   // ── 4단계: 병합 기준은 항상 Supabase 현재 상태 ──────────────────────────
   const rows = await sbGet(env, 'data,updated_at');
@@ -161,7 +207,7 @@ async function main() {
     }
 
     const before = {};
-    for (const f of FACT_FIELDS) before[f] = canon(co[f]);
+    for (const f of [...FACT_FIELDS, ...OVERWRITE_IF_PRESENT]) before[f] = canon(co[f]);
 
     co.sessions = rowsFor.length
       ? rowsFor.map((r, i) => ({
@@ -186,7 +232,7 @@ async function main() {
     co.inviteEmails = meta.inviteEmails;
     co.trainingStatus = STATUS_MAP[meta.status] || co.trainingStatus || '';
     co.archived = false;
-    for (const f of FILL_IF_EMPTY) if (!co[f]) co[f] = meta[f] || '';
+    for (const f of OVERWRITE_IF_PRESENT) if (meta[f]) co[f] = meta[f];
 
     const label = `${meta.client} | ${meta.training}`;
     if (isNew) {
@@ -194,7 +240,7 @@ async function main() {
       added.push(`${label} | ${co.instructorName || '강사 미배정'}`);
       continue;
     }
-    const diffs = FACT_FIELDS.filter(f => before[f] !== canon(co[f]));
+    const diffs = [...FACT_FIELDS, ...OVERWRITE_IF_PRESENT].filter(f => before[f] !== canon(co[f]));
     if (diffs.length) updated.push(`${label} → ${diffs.join(', ')}`);
     else unchanged.push(label);
   }
@@ -279,6 +325,10 @@ async function main() {
 
   console.log(summary());
   console.log(postResult);
+  if (!DRY_RUN) {
+    // 반영 직후 새로 조회해 대조. 이후 열려 있던 옛 화면이 덮어쓰는 경우는 --verify로 잠시 뒤 다시 확인한다.
+    if (!(await verifyAgainstSupabase(env, payload))) process.exit(3);
+  }
 }
 
 main().catch(err => { console.error('ERROR: ' + err.message); process.exit(1); });
