@@ -1062,6 +1062,9 @@ function applyNotesHistoryValue(value) {
 // 서버가 409로 거절한다 — 오래된 화면이 새 데이터를 통째로 덮어쓰는 사고를 막는다.
 let stateVersion = '';
 let stateStale = false;
+// 서버에 마지막으로 반영된(또는 서버에서 받은) 상태의 직렬화. render()가 저장을 매번 예약하므로,
+// 내용이 그대로면 보내지 않는다 — 같은 내용을 덮어써 서버 버전만 올리면 다른 탭·동기화가 "최신 아님"이 된다.
+let lastSavedSnapshot = '';
 // 서버가 돌려주는 시각 표기("…Z" / "…+00:00")가 달라도 같은 순간이면 같은 버전으로 본다
 function sameVersion(a, b) {
   if (a === b) return true;
@@ -1087,7 +1090,7 @@ async function loadState() {
       const data = await res.json();
       stateVersion = res.headers.get('X-State-Version') || '';
       stateStale = false;
-      if (data && data.tasks && data.companies) return data;
+      if (data && data.tasks && data.companies) { lastSavedSnapshot = JSON.stringify(data); return data; }
     }
   } catch (err) {
     console.log('API 불러오기 실패, localStorage 시도:', err);
@@ -1121,6 +1124,8 @@ async function persistNow() {
 
 async function persistOnce() {
   const payload = state;
+  const snapshot = JSON.stringify(payload);
+  if (snapshot === lastSavedSnapshot) { isDirty = false; return; }
   let apiOk = false;
 
   try {
@@ -1134,6 +1139,7 @@ async function persistOnce() {
     if (res.ok) {
       const r = await res.json().catch(() => null);
       if (r && r.version) stateVersion = r.version;
+      lastSavedSnapshot = snapshot;
     }
   } catch (err) {
     console.warn('API 저장 실패:', err);
@@ -3670,6 +3676,8 @@ function flushSave() {
   if (!isDirty || stateStale) return;
   isDirty = false;
   const payload = JSON.stringify(state);
+  if (payload === lastSavedSnapshot) return;
+  lastSavedSnapshot = payload;
   try {
     const url = '/api/state?owner=' + encodeURIComponent(getCurrentOwner()) + (stateVersion ? '&base=' + encodeURIComponent(stateVersion) : '');
     navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
