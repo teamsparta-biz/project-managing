@@ -250,7 +250,16 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .top-panels > .todo-panel .todo-body { flex: 1; max-height: 520px; }
 .top-panels.with-todo .notes-body { flex-direction: column; }
 .top-panels.with-todo .notes-editor-pane { border-right: none; border-bottom: 1px solid var(--border-tertiary); }
-@media (max-width: 1000px) { .top-panels { flex-direction: column; } }
+.top-panels > .top-splitter { flex: 0 0 8px; margin: 0 -4px; cursor: col-resize; display: none; position: relative; z-index: 1; }
+.top-panels.with-todo > .top-splitter { display: block; }
+.top-splitter::after { content: ''; position: absolute; left: 3px; top: 0; bottom: 0; width: 2px; border-radius: 2px; background: transparent; transition: background 0.15s; }
+.top-splitter:hover::after, .top-splitter.dragging::after { background: var(--border-primary); }
+.top-panels > .todo-panel.sized, .top-panels > .notes-section.sized { flex: 0 0 auto; }
+.top-panels .notes-body, #notes-completed-pane { height: 240px; min-height: 120px; max-height: 80vh; resize: vertical; overflow: auto; }
+.top-panels .notes-input, .top-panels .notes-preview { min-height: 0; }
+#notes-completed-pane { display: flex; flex-direction: column; }
+#notes-completed-pane .notes-input { resize: none; }
+@media (max-width: 1000px) { .top-panels { flex-direction: column; } .top-panels > .top-splitter { display: none !important; } .top-panels > .todo-panel.sized, .top-panels > .notes-section.sized { flex: 1 1 0; width: auto !important; } }
 
 /* 내 할 일 패널 */
 #todo-toggle.has-over { border-color: color-mix(in srgb, var(--color-d-over) 45%, transparent); color: var(--color-d-over); }
@@ -692,6 +701,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
       <div class="todo-body" id="todo-body"></div>
     </div>
 
+    <div class="top-splitter" id="top-splitter" title="드래그해서 폭 조절 (더블클릭: 초기화)"></div>
     <div class="notes-section">
       <div class="notes-header">
         <h2><i class="ti ti-notebook"></i>업무 특이사항</h2>
@@ -3843,6 +3853,41 @@ document.addEventListener('keydown', e => {
     autoArchiveDay = day;
     render();
   }, 60000);
+})();
+
+// 내 할 일 / 업무 특이사항 폭 조절 (드래그, 더블클릭으로 초기화)
+(function () {
+  const bar = document.getElementById('top-splitter');
+  const wrap = document.getElementById('top-panels');
+  const todo = document.getElementById('todo-panel');
+  const notes = wrap?.querySelector('.notes-section');
+  if (!bar || !wrap || !todo || !notes) return;
+  const KEY = 'topPanelsTodoRatio';
+  const apply = (r) => {
+    if (r == null) { todo.classList.remove('sized'); notes.classList.remove('sized'); todo.style.width = notes.style.width = ''; return; }
+    const total = wrap.clientWidth - 32;
+    todo.classList.add('sized'); notes.classList.add('sized');
+    todo.style.width = Math.round(total * r) + 'px';
+    notes.style.width = Math.round(total * (1 - r)) + 'px';
+  };
+  try { const r = parseFloat(localStorage.getItem(KEY)); if (r > 0.15 && r < 0.85) apply(r); } catch (e) {}
+  bar.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    bar.setPointerCapture(e.pointerId); bar.classList.add('dragging');
+    const move = (ev) => {
+      const rect = wrap.getBoundingClientRect();
+      const r = Math.min(0.8, Math.max(0.2, (ev.clientX - rect.left) / rect.width));
+      apply(r); bar._r = r;
+    };
+    const up = () => {
+      bar.classList.remove('dragging');
+      bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up);
+      try { if (bar._r) localStorage.setItem(KEY, bar._r); } catch (e) {}
+    };
+    bar.addEventListener('pointermove', move); bar.addEventListener('pointerup', up);
+  });
+  bar.addEventListener('dblclick', () => { apply(null); bar._r = null; try { localStorage.removeItem(KEY); } catch (e) {} });
+  window.addEventListener('resize', () => { try { const r = parseFloat(localStorage.getItem(KEY)); if (r > 0.15 && r < 0.85) apply(r); } catch (e) {} });
 })();
 </script>
 </body>
