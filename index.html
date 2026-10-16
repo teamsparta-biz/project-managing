@@ -243,6 +243,15 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .memo-overview-list { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
 .memo-overview-list li { font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
 
+/* 내 할 일 + 업무 특이사항 나란히 배치 */
+.top-panels { display: flex; gap: 16px; align-items: stretch; margin-bottom: 16px; }
+.top-panels > * { flex: 1 1 0; min-width: 0; margin: 0; }
+.top-panels > .todo-panel { display: flex; flex-direction: column; }
+.top-panels > .todo-panel .todo-body { flex: 1; max-height: 520px; }
+.top-panels.with-todo .notes-body { flex-direction: column; }
+.top-panels.with-todo .notes-editor-pane { border-right: none; border-bottom: 1px solid var(--border-tertiary); }
+@media (max-width: 1000px) { .top-panels { flex-direction: column; } }
+
 /* 내 할 일 패널 */
 #todo-toggle.has-over { border-color: color-mix(in srgb, var(--color-d-over) 45%, transparent); color: var(--color-d-over); }
 #todo-toggle.has-over .memo-overview-badge { background: var(--color-d-over); }
@@ -670,16 +679,53 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
     <button class="tab" id="tab-calendar" onclick="switchTab('calendar')"><i class="ti ti-calendar-month"></i>일정 캘린더</button>
   </div>
 
-  <div id="todo-panel" class="todo-panel" style="display:none;">
-    <div class="memo-overview-head">
-      <span><i class="ti ti-checkbox"></i>내 할 일<span class="memo-overview-sub" id="todo-sub"></span></span>
-      <button class="memo-overview-close" onclick="toggleTodoPanel()" title="닫기"><i class="ti ti-x"></i></button>
+  <div class="top-panels" id="top-panels">
+    <div id="todo-panel" class="todo-panel" style="display:none;">
+      <div class="memo-overview-head">
+        <span><i class="ti ti-checkbox"></i>내 할 일<span class="memo-overview-sub" id="todo-sub"></span></span>
+        <button class="memo-overview-close" onclick="toggleTodoPanel()" title="닫기"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="todo-input-wrap">
+        <input type="text" id="todo-input" class="todo-input" placeholder="할 일을 적고 Enter — 예) 삼성전자 TSP 일정확인 10월 1일까지" autocomplete="off" />
+        <div class="todo-parse-preview" id="todo-parse-preview"></div>
+      </div>
+      <div class="todo-body" id="todo-body"></div>
     </div>
-    <div class="todo-input-wrap">
-      <input type="text" id="todo-input" class="todo-input" placeholder="할 일을 적고 Enter — 예) 삼성전자 TSP 일정확인 10월 1일까지" autocomplete="off" />
-      <div class="todo-parse-preview" id="todo-parse-preview"></div>
+
+    <div class="notes-section">
+      <div class="notes-header">
+        <h2><i class="ti ti-notebook"></i>업무 특이사항</h2>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="cleanup-btn" onclick="cleanupNotes()" title="취소선 항목을 업무 완료 탭으로 이동"><i class="ti ti-transfer-out"></i>정리하기</button>
+          <div class="notes-meta">
+            <span id="notes-count">0자</span>
+            <span class="notes-divider">·</span>
+            <span id="notes-updated">아직 작성된 내용 없음</span>
+          </div>
+        </div>
+      </div>
+      <div class="notes-tab-bar">
+        <button class="notes-tab-btn active" id="notes-tab-btn-notes" onclick="switchNotesTab('notes')"><i class="ti ti-notes"></i>특이사항</button>
+        <button class="notes-tab-btn" id="notes-tab-btn-completed" onclick="switchNotesTab('completed')"><i class="ti ti-circle-check"></i>업무 완료</button>
+        <button class="notes-tab-btn" id="notes-tab-btn-preview" onclick="switchNotesTab('preview')"><i class="ti ti-eye"></i>미리보기</button>
+      </div>
+      <div class="notes-body" id="notes-main-pane">
+        <div class="notes-editor-pane">
+          <div class="notes-pane-label"><i class="ti ti-pencil"></i>편집</div>
+          <textarea id="notes" class="notes-input" placeholder="업무를 진행하면서 발생한 특이사항, 메모, 아이디어를 자유롭게 작성하세요...&#10;&#10;예) - A기업 강사 일정 조율 필요 (수요일 오후 불가)&#10;    - 교안 피드백 받은 내용 정리&#10;    - 다음 분기 개선사항"></textarea>
+        </div>
+        <div class="notes-preview-pane">
+          <div class="notes-pane-label"><i class="ti ti-eye"></i>미리보기</div>
+          <div id="notes-preview" class="notes-preview"></div>
+        </div>
+      </div>
+      <div id="notes-completed-pane" style="display:none;">
+        <textarea id="completed-notes" class="notes-input" placeholder="정리하기 버튼으로 취소선 항목이 여기에 모입니다...&#10;&#10;직접 편집하거나 삭제할 수도 있습니다."></textarea>
+      </div>
+      <div id="notes-preview-full-pane" style="display:none;">
+        <div id="notes-preview-full" class="notes-preview" style="min-height: 480px; padding: 24px 32px; font-size: 14px; line-height: 1.8;"></div>
+      </div>
     </div>
-    <div class="todo-body" id="todo-body"></div>
   </div>
 
   <div id="memo-overview-panel" class="memo-overview-panel" style="display:none;"></div>
@@ -709,41 +755,6 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 
   <div id="card-view" class="card-grid" style="display:none;"></div>
   <div id="calendar-view" class="cal-view"></div>
-
-  <div class="notes-section">
-    <div class="notes-header">
-      <h2><i class="ti ti-notebook"></i>업무 특이사항</h2>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <button class="cleanup-btn" onclick="cleanupNotes()" title="취소선 항목을 업무 완료 탭으로 이동"><i class="ti ti-transfer-out"></i>정리하기</button>
-        <div class="notes-meta">
-          <span id="notes-count">0자</span>
-          <span class="notes-divider">·</span>
-          <span id="notes-updated">아직 작성된 내용 없음</span>
-        </div>
-      </div>
-    </div>
-    <div class="notes-tab-bar">
-      <button class="notes-tab-btn active" id="notes-tab-btn-notes" onclick="switchNotesTab('notes')"><i class="ti ti-notes"></i>특이사항</button>
-      <button class="notes-tab-btn" id="notes-tab-btn-completed" onclick="switchNotesTab('completed')"><i class="ti ti-circle-check"></i>업무 완료</button>
-      <button class="notes-tab-btn" id="notes-tab-btn-preview" onclick="switchNotesTab('preview')"><i class="ti ti-eye"></i>미리보기</button>
-    </div>
-    <div class="notes-body" id="notes-main-pane">
-      <div class="notes-editor-pane">
-        <div class="notes-pane-label"><i class="ti ti-pencil"></i>편집</div>
-        <textarea id="notes" class="notes-input" placeholder="업무를 진행하면서 발생한 특이사항, 메모, 아이디어를 자유롭게 작성하세요...&#10;&#10;예) - A기업 강사 일정 조율 필요 (수요일 오후 불가)&#10;    - 교안 피드백 받은 내용 정리&#10;    - 다음 분기 개선사항"></textarea>
-      </div>
-      <div class="notes-preview-pane">
-        <div class="notes-pane-label"><i class="ti ti-eye"></i>미리보기</div>
-        <div id="notes-preview" class="notes-preview"></div>
-      </div>
-    </div>
-    <div id="notes-completed-pane" style="display:none;">
-      <textarea id="completed-notes" class="notes-input" placeholder="정리하기 버튼으로 취소선 항목이 여기에 모입니다...&#10;&#10;직접 편집하거나 삭제할 수도 있습니다."></textarea>
-    </div>
-    <div id="notes-preview-full-pane" style="display:none;">
-      <div id="notes-preview-full" class="notes-preview" style="min-height: 480px; padding: 24px 32px; font-size: 14px; line-height: 1.8;"></div>
-    </div>
-  </div>
 
   <div id="modal-root"></div>
 </div>
@@ -2355,6 +2366,7 @@ function renderTodos() {
   toggle?.classList.toggle('has-over', overCount > 0);
 
   panel.style.display = todoPanelOpen ? '' : 'none';
+  document.getElementById('top-panels')?.classList.toggle('with-todo', todoPanelOpen);
   if (!todoPanelOpen) return;
   document.getElementById('todo-sub').textContent = open.length ? `${open.length}개 남음${overCount ? ` · 마감 지남 ${overCount}` : ''}` : '';
 
