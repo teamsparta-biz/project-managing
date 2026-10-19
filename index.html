@@ -248,14 +248,12 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .top-panels > * { flex: 1 1 0; min-width: 0; margin: 0; }
 .top-panels > .todo-panel { display: flex; flex-direction: column; }
 .top-panels > .todo-panel .todo-body { flex: 1; max-height: 520px; }
-.top-panels.with-todo .notes-body { flex-direction: column; }
-.top-panels.with-todo .notes-editor-pane { border-right: none; border-bottom: 1px solid var(--border-tertiary); }
 .top-panels > .top-splitter { flex: 0 0 8px; margin: 0 -4px; cursor: col-resize; display: none; position: relative; z-index: 1; }
 .top-panels.with-todo > .top-splitter { display: block; }
 .top-splitter::after { content: ''; position: absolute; left: 3px; top: 0; bottom: 0; width: 2px; border-radius: 2px; background: transparent; transition: background 0.15s; }
 .top-splitter:hover::after, .top-splitter.dragging::after { background: var(--border-primary); }
 .top-panels > .todo-panel.sized, .top-panels > .notes-section.sized { flex: 0 0 auto; }
-.top-panels .notes-body, #notes-completed-pane { height: 240px; min-height: 120px; max-height: 80vh; resize: vertical; overflow: auto; }
+.top-panels .notes-body, #notes-completed-pane { height: 360px; min-height: 120px; max-height: 80vh; resize: vertical; overflow: auto; }
 .top-panels .notes-input, .top-panels .notes-preview { min-height: 0; }
 #notes-completed-pane { display: flex; flex-direction: column; }
 #notes-completed-pane .notes-input { resize: none; }
@@ -555,17 +553,15 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .training-status-badge.ts-ended .status-dot { background: var(--text-tertiary); }
 
 .notes-body { display: flex; min-height: 300px; }
-.notes-editor-pane { flex: 1; min-width: 0; border-right: 1px solid var(--border-tertiary); display: flex; flex-direction: column; }
-.notes-preview-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.notes-pane-label { font-size: 11px; color: var(--text-tertiary); font-weight: 500; padding: 6px 14px; border-bottom: 1px solid var(--border-tertiary); display: flex; align-items: center; gap: 4px; background: var(--bg-secondary); flex-shrink: 0; }
-.notes-pane-label i { font-size: 12px; }
+.notes-editor-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.notes-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--border-tertiary); flex-shrink: 0; }
+.notes-tool-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 12px; font-family: var(--font-sans); font-weight: 500; color: var(--text-secondary); background: var(--bg-primary); border: 1px solid var(--border-secondary); border-radius: var(--radius-md); cursor: pointer; transition: background 0.15s, color 0.15s; }
+.notes-tool-btn:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.notes-tool-btn i { font-size: 13px; }
+.notes-toolbar-hint { margin-left: auto; font-size: 11px; color: var(--text-tertiary); }
 .notes-input { flex: 1; width: 100%; min-height: 280px; padding: 16px 18px; font-size: 13px; font-family: var(--font-sans); line-height: 1.7; border: none; background: var(--bg-primary); color: var(--text-primary); outline: none; resize: none; box-sizing: border-box; }
 .notes-input::placeholder { color: var(--text-tertiary); opacity: 0.7; white-space: pre-line; }
 .notes-preview { flex: 1; width: 100%; min-height: 280px; padding: 16px 18px; font-size: 13px; font-family: var(--font-sans); line-height: 1.7; background: var(--bg-primary); color: var(--text-primary); display: block; box-sizing: border-box; overflow-y: auto; }
-@media (max-width: 860px) {
-  .notes-body { flex-direction: column; }
-  .notes-editor-pane { border-right: none; border-bottom: 1px solid var(--border-tertiary); }
-}
 .notes-preview h1,.notes-preview h2,.notes-preview h3 { font-weight: 600; margin: 16px 0 8px; color: var(--text-primary); }
 .notes-preview h1 { font-size: 18px; border-bottom: 1px solid var(--border-tertiary); padding-bottom: 6px; }
 .notes-preview h2 { font-size: 15px; }
@@ -721,12 +717,13 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
       </div>
       <div class="notes-body" id="notes-main-pane">
         <div class="notes-editor-pane">
-          <div class="notes-pane-label"><i class="ti ti-pencil"></i>편집</div>
-          <textarea id="notes" class="notes-input" placeholder="업무를 진행하면서 발생한 특이사항, 메모, 아이디어를 자유롭게 작성하세요...&#10;&#10;예) - A기업 강사 일정 조율 필요 (수요일 오후 불가)&#10;    - 교안 피드백 받은 내용 정리&#10;    - 다음 분기 개선사항"></textarea>
-        </div>
-        <div class="notes-preview-pane">
-          <div class="notes-pane-label"><i class="ti ti-eye"></i>미리보기</div>
-          <div id="notes-preview" class="notes-preview"></div>
+          <div class="notes-toolbar">
+            <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="notesToggleLinePrefix('- ')" title="선택한 줄을 목록으로"><i class="ti ti-list"></i>목록</button>
+            <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="notesToggleLinePrefix('## ')" title="선택한 줄을 소제목으로 (정리할 때 묶음 이름이 됨)"><i class="ti ti-heading"></i>소제목</button>
+            <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="notesToggleDone()" title="커서가 있는 줄을 완료(취소선) 표시 / 해제"><i class="ti ti-check"></i>완료 표시</button>
+            <span class="notes-toolbar-hint">Enter 다음 항목 · Tab 들여쓰기 · Ctrl/⌘+Shift+X 완료 표시</span>
+          </div>
+          <textarea id="notes" class="notes-input" placeholder="한 줄에 하나씩 적으세요. '- '로 시작하면 Enter 때 다음 항목이 자동으로 이어집니다.&#10;&#10;- A기업 강사 일정 조율 필요 (수요일 오후 불가)&#10;- 교안 피드백 받은 내용 정리&#10;&#10;끝난 항목은 커서를 두고 [완료 표시] → [정리하기]로 업무 완료 탭에 옮기세요."></textarea>
         </div>
       </div>
       <div id="notes-completed-pane" style="display:none;">
@@ -1033,6 +1030,48 @@ function cleanupNotes() {
   saveState();
   switchNotesTab('completed');
   showCopyToast(`${completed.length}개 항목이 업무 완료로 이동되었습니다`);
+}
+
+// 업무 특이사항 편집 도우미 — 커서/선택이 걸친 줄들을 한꺼번에 바꾼다
+function notesEditLines(fn) {
+  const ta = document.getElementById('notes');
+  if (!ta) return;
+  const v = ta.value;
+  const start = v.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+  let end = v.indexOf('\n', Math.max(ta.selectionStart, ta.selectionEnd - (ta.selectionEnd > ta.selectionStart ? 1 : 0)));
+  if (end === -1) end = v.length;
+  const lines = v.slice(start, end).split('\n');
+  const out = fn(lines).join('\n');
+  ta.value = v.slice(0, start) + out + v.slice(end);
+  ta.focus();
+  if (lines.length === 1) ta.selectionStart = ta.selectionEnd = start + out.length;
+  else { ta.selectionStart = start; ta.selectionEnd = start + out.length; }
+  ta.dispatchEvent(new Event('input'));
+}
+
+function notesToggleLinePrefix(prefix) {
+  notesEditLines(lines => {
+    const all = lines.filter(l => l.trim()).every(l => l.trimStart().startsWith(prefix));
+    return lines.map(l => {
+      const [, indent, body] = l.match(/^(\s*)(.*)$/);
+      if (all) return indent + body.slice(prefix.length);
+      // 목록 ↔ 소제목 전환 시 기존 머리표는 떼고 붙인다
+      return indent + prefix + body.replace(/^(?:-\s+|#{1,6}\s+)/, '');
+    });
+  });
+}
+
+function notesToggleDone() {
+  notesEditLines(lines => {
+    const targets = lines.filter(l => l.replace(/^\s*(?:-\s+)?/, '').trim());
+    const allDone = targets.length > 0 && targets.every(l => /^\s*(?:-\s+)?~~.+~~\s*$/.test(l));
+    return lines.map(l => {
+      const [, head, body] = l.match(/^(\s*(?:-\s+)?)(.*?)\s*$/);
+      if (!body) return l;
+      if (allDone) return head + body.replace(/^~~(.+)~~$/, '$1');
+      return /^~~.+~~$/.test(body) ? l : head + '~~' + body + '~~';
+    });
+  });
 }
 
 // 업무 특이사항 되돌리기 스택
@@ -3250,9 +3289,6 @@ function renderMarkdown(src) {
 }
 
 function updateNotesPreview() {
-  const preview = document.getElementById('notes-preview');
-  if (!preview) return;
-  preview.innerHTML = renderMarkdown(state.notes || '*아직 작성된 내용이 없습니다.*');
   if (notesTab === 'preview') updateNotesPreviewFull();
 }
 
@@ -3765,22 +3801,9 @@ document.getElementById('notes').addEventListener('keydown', e => {
     notesRedo();
     return;
   }
-  if (e.ctrlKey && e.shiftKey && e.key === 'X') {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'x' || e.key === 'X')) {
     e.preventDefault();
-    const ta = e.target;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const selected = ta.value.slice(start, end);
-    const before = ta.value.slice(0, start);
-    const after = ta.value.slice(end);
-    ta.value = before + '~~' + selected + '~~' + after;
-    if (selected.length === 0) {
-      ta.selectionStart = ta.selectionEnd = start + 2;
-    } else {
-      ta.selectionStart = start;
-      ta.selectionEnd = end + 4;
-    }
-    ta.dispatchEvent(new Event('input'));
+    notesToggleDone();
   }
 });
 
