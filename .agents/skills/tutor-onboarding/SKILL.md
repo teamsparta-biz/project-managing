@@ -11,7 +11,7 @@ description: |
   - 교육 장소/일정 안내 메시지를 단톡방에 보내야 할 때
 argument-hint: "[기업명] [교육명:교육명]"
 user-invocable: true
-allowed-tools: mcp__ax-hub__query_sql, mcp__claude_ai_Slack__slack_search_users, mcp__claude_ai_Slack__slack_create_conversation, mcp__claude_ai_Slack__slack_send_message
+allowed-tools: mcp__ax-hub__query_sql, mcp__claude_ai_Slack__slack_search_users, mcp__claude_ai_Slack__slack_create_conversation, mcp__claude_ai_Slack__slack_send_message, mcp__claude_ai_Slack__slack_list_channel_members, mcp__claude_ai_Slack__slack_search_channels
 ---
 
 # 튜터 온보딩 스킬
@@ -35,7 +35,9 @@ allowed-tools: mcp__ax-hub__query_sql, mcp__claude_ai_Slack__slack_search_users,
     ↓
 [4단계] 슬랙 사용자 ID 확보 (DB slack_id 우선, 없으면 검색)
     ↓
-[5단계] 그룹 DM(단톡방) 생성
+[4-1단계] 기존 방(채널·그룹 DM) 존재 여부 확인 (필수, 생성 전에 항상 먼저) → 있으면 멤버 비교 → 빠진 인원만 파악
+    ↓
+[5단계] 그룹 DM(단톡방) 생성 (4-1단계에서 기존 방이 전혀 없을 때만)
     ↓
 [6단계] 메시지 초안(표 형식) 검토 요청 → 사용자 확인
     ↓
@@ -110,6 +112,38 @@ WHERE c.id = '{course_id}';
 - `instructors.slack_id`가 DB에 있으면 그대로 사용합니다.
 - 없으면 `slack_search_users`로 이름 또는 이메일(`notion_email`/`email`)로 검색합니다.
 - 검색으로도 찾지 못하면 그룹 DM 및 발송 대상에서 제외하고, 최종 결과 안내 시 누구를 제외했는지 알려줍니다.
+
+---
+
+## 4-1단계: 기존 방 존재 확인 및 멤버 비교 (차이만 초대)
+
+**채널이나 그룹 DM을 만들기 전에 반드시 이 단계를 먼저 수행합니다.** 사용자가 기존 방을 언급하지 않았더라도 건너뛰지 않습니다. 기존 방이 있으면 새로 만들지 않고 그 방에 안내 메시지를 보냅니다(6~7단계 검수 후 전송). 기존 방과 **빠진 인원만** 비교해 골라냅니다.
+
+1. 기존 방을 찾습니다. 채널 ID를 알면 그대로 쓰고, 모르면 아래를 모두 검색합니다.
+   - `slack_search_channels`로 기업명·교육명 키워드 검색 (`channel_types=public_channel,private_channel`, `include_archived=true`로 보관된 방도 확인. 보관된 방은 사용 불가이므로 참고만)
+   - `slack_search_public_and_private`로 기업명을 검색해 `Group DM` 결과 확인 (채널명이 없는 그룹 DM은 여기서만 발견됨. 결과가 크면 파일로 저장되므로 Group DM ID·Participants만 추려서 확인)
+   - 이미 안내 메시지를 보낸 이력이 있는 방인지도 함께 확인
+   - 여러 개면 사용자에게 어느 방인지 확인합니다. 기존 방이 전혀 없을 때만 5단계로 갑니다.
+2. `slack_list_channel_members`로 기존 방 멤버 user_id 목록을 가져옵니다.
+3. 4단계에서 확보한 전체 강사·기술튜터 user_id와 비교해 다음 세 가지로 나눕니다.
+   - **이미 있음**: 기존 방 멤버에 포함된 인원
+   - **빠진 인원**: 배정됐는데 방에 없는 인원 (초대 대상)
+   - **방에만 있음**: 방에는 있지만 배정 명단에 없는 인원 (참고용으로만 안내하고 임의로 내보내지 않음)
+4. 결과를 사용자에게 보여줍니다.
+
+```
+기존 방 비교 결과 (#{채널명})
+- 이미 있음 ({N}명): ...
+- 빠진 인원 ({M}명): ...
+- 방에만 있음 ({K}명): ...
+```
+
+5. 빠진 인원이 0명이면 "전원 초대되어 있습니다"라고 안내하고, 새 방은 만들지 않습니다. 안내 메시지가 필요하면 기존 방에 6~7단계 절차(검수 후 전송)로 보냅니다.
+6. 빠진 인원이 있으면 방 종류에 따라 처리합니다.
+   - **일반 채널**: 이 스킬에는 멤버 추가(초대) 도구가 없습니다. 빠진 인원의 이름·이메일을 정리해 사용자에게 주고, 슬랙에서 `/invite @이름`으로 직접 초대하도록 안내합니다.
+   - **그룹 DM**: 슬랙은 기존 그룹 DM에 멤버를 추가할 수 없습니다. 이 경우 사용자에게 "전원이 포함된 새 그룹 DM을 만들고 기존 방은 그대로 둘지" 물어보고, 승인하면 5단계로 갑니다.
+
+> 사람 수 확인: 그룹 DM은 최대 8명이므로, 전체 인원이 9명 이상이면 새 그룹 DM 생성이 불가능합니다. 이 경우 채널 사용을 제안합니다.
 
 ---
 
