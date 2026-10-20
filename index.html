@@ -1132,6 +1132,65 @@ function sameVersion(a, b) {
   return !isNaN(x) && x === y;
 }
 
+// 3-way 병합: base(마지막으로 서버와 맞춘 상태) 대비 이 화면에서 바뀐 부분만 서버 최신본(remote)에 얹는다.
+// 한쪽만 바꾼 값은 바꾼 쪽을 따르고, 양쪽이 같은 값을 바꾼 경우에만 이 화면(local)의 수정이 이긴다.
+function mergeValue(base, local, remote) {
+  const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  if (eq(local, base)) return remote;
+  if (eq(remote, base) || eq(local, remote)) return local;
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  if (isObj(local) && isObj(remote)) {
+    const b = isObj(base) ? base : {};
+    const out = {};
+    for (const k of new Set([...Object.keys(remote), ...Object.keys(local)])) {
+      const v = mergeValue(b[k], local[k], remote[k]);
+      if (v !== undefined) out[k] = v;
+    }
+    return out;
+  }
+  const byId = v => Array.isArray(v) && v.every(x => isObj(x) && x.id !== undefined);
+  if (byId(local) && byId(remote) && (base === undefined || byId(base))) {
+    const map = arr => new Map((arr || []).map(x => [x.id, x]));
+    const bm = map(base), lm = map(local), rm = map(remote);
+    const out = [];
+    for (const id of new Set([...rm.keys(), ...lm.keys()])) {
+      const v = mergeValue(bm.get(id), lm.get(id), rm.get(id));
+      if (v !== undefined) out.push(v);
+    }
+    return out;
+  }
+  return local;
+}
+
+// 서버가 그 사이 바뀌었을 때, 최신 데이터를 받아 내 수정분과 합친다. 성공하면 true.
+async function reconcileWithServer() {
+  try {
+    const res = await fetch('/api/state?owner=' + encodeURIComponent(getCurrentOwner()));
+    if (!res.ok) return false;
+    const remote = await res.json();
+    if (!remote || !remote.tasks || !remote.companies) return false;
+    const version = res.headers.get('X-State-Version') || '';
+    normalizeLoadedState(remote);
+    const base = lastSavedSnapshot ? JSON.parse(lastSavedSnapshot) : remote;
+    state = mergeValue(base, state, remote);
+    if (!Array.isArray(state.todos)) state.todos = [];
+    nextCompanyId = Math.max(nextCompanyId, ...state.companies.map(c => c.id + 1));
+    (state.todos || []).forEach(t => t && t.id && todoKnownIds.add(t.id));
+    stateVersion = version;
+    lastSavedSnapshot = JSON.stringify(remote);
+    stateStale = false;
+    const stale = document.getElementById('stale-banner');
+    if (stale) stale.remove();
+    // 열려 있는 모달·교육 노트 편집을 깨뜨리지 않도록, 그럴 땐 화면 갱신은 미루고 데이터만 합친다
+    if (!document.querySelector('#modal-root .modal-overlay') && pageOpenId == null) render();
+    else saveState();
+    return true;
+  } catch (err) {
+    console.warn('서버 데이터 병합 실패:', err);
+    return false;
+  }
+}
+
 function showStaleBanner() {
   stateStale = true;
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
@@ -1195,7 +1254,11 @@ async function persistOnce() {
       body: JSON.stringify(payload)
     });
     apiOk = res.ok;
-    if (res.status === 409) { showStaleBanner(); return; }
+    if (res.status === 409) {
+      // 다른 곳에서 먼저 갱신됨 — 경고 대신 최신 데이터에 내 수정을 합쳐 다시 저장한다
+      if (!(await reconcileWithServer())) showStaleBanner();
+      return;
+    }
     if (res.ok) {
       const r = await res.json().catch(() => null);
       if (r && r.version) stateVersion = r.version;
@@ -2488,7 +2551,8 @@ async function pullRemoteTodos() {
     const remoteVersion = res.headers.get('X-State-Version') || '';
     if (stateVersion && remoteVersion && !sameVersion(remoteVersion, stateVersion)) {
       if (!isDirty && !saveTimer && !persisting && !persistQueued && !document.querySelector('#modal-root .modal-overlay') && pageOpenId == null) location.reload();
-      else showStaleBanner();
+      else if (isDirty || saveTimer || persisting || persistQueued) await reconcileWithServer();
+      // 그 외(모달·노트 편집 중)는 건드리지 않는다 — 다음 저장 때 충돌하면 병합된다
       return;
     }
     const remote = await res.json();
@@ -3819,6 +3883,43 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// 서버/로컬에서 받은 데이터를 화면이 쓰는 형태로 맞춘다(구형 구조 변환 포함). 여러 번 적용해도 결과가 같다.
+function normalizeLoadedState(st) {
+  if (typeof st.notes !== 'string') st.notes = '';
+  if (st.notesUpdated === undefined) st.notesUpdated = null;
+  if (typeof st.completedNotes !== 'string') st.completedNotes = '';
+  if (st.completedNotesUpdated === undefined) st.completedNotesUpdated = null;
+  // 기존 데이터 마이그레이션
+  st.companies.forEach(c => {
+    if (!c.sessions) {
+      // 구형 flat 구조 → sessions
+      const { date: sd, time: st } = parseDatetimeLocal(c.startAt || '');
+      const { time: et } = parseDatetimeLocal(c.endAt || '');
+      c.sessions = [{ id: 'session_' + c.id + '_1', dates: sd ? [sd] : [], startTime: st, endTime: et, instructorName: c.instructorName || '', tutorName: c.tutorName || '' }];
+      delete c.startAt; delete c.endAt; delete c.instructorName; delete c.tutorName;
+    } else {
+      c.sessions.forEach(s => {
+        // startAt/endAt 형식 변환
+        if (s.startAt !== undefined || s.endAt !== undefined) {
+          const { date: sd, time: st } = parseDatetimeLocal(s.startAt || '');
+          const { time: et } = parseDatetimeLocal(s.endAt || '');
+          if (!s.dates) s.dates = sd ? [sd] : [];
+          s.startTime = s.startTime || st;
+          s.endTime = s.endTime || et;
+          delete s.startAt; delete s.endAt;
+        }
+        // 구형 date 단일 필드 → dates 배열로 변환
+        if (s.dates === undefined) {
+          s.dates = s.date ? [s.date] : [];
+          delete s.date;
+        }
+      });
+    }
+    // 일자별 보기: 회차(여러 날짜 묶음)를 날짜 단위 항목으로 평탄화
+    c.sessions = flattenSessionsByDate(c);
+  });
+}
+
 (async function init() {
   applyTheme(getTheme());
   if (!getCurrentOwner()) {
@@ -3828,40 +3929,10 @@ document.addEventListener('keydown', e => {
   try {
     const loaded = await loadState();
     state = loaded;
-    if (typeof state.notes !== 'string') state.notes = '';
-    if (state.notesUpdated === undefined) state.notesUpdated = null;
-    if (typeof state.completedNotes !== 'string') state.completedNotes = '';
-    if (state.completedNotesUpdated === undefined) state.completedNotesUpdated = null;
+    normalizeLoadedState(state);
     nextCompanyId = Math.max(0, ...state.companies.map(c => c.id)) + 1;
-    // 기존 데이터 마이그레이션
-    state.companies.forEach(c => {
-      if (!c.sessions) {
-        // 구형 flat 구조 → sessions
-        const { date: sd, time: st } = parseDatetimeLocal(c.startAt || '');
-        const { time: et } = parseDatetimeLocal(c.endAt || '');
-        c.sessions = [{ id: 'session_' + c.id + '_1', dates: sd ? [sd] : [], startTime: st, endTime: et, instructorName: c.instructorName || '', tutorName: c.tutorName || '' }];
-        delete c.startAt; delete c.endAt; delete c.instructorName; delete c.tutorName;
-      } else {
-        c.sessions.forEach(s => {
-          // startAt/endAt 형식 변환
-          if (s.startAt !== undefined || s.endAt !== undefined) {
-            const { date: sd, time: st } = parseDatetimeLocal(s.startAt || '');
-            const { time: et } = parseDatetimeLocal(s.endAt || '');
-            if (!s.dates) s.dates = sd ? [sd] : [];
-            s.startTime = s.startTime || st;
-            s.endTime = s.endTime || et;
-            delete s.startAt; delete s.endAt;
-          }
-          // 구형 date 단일 필드 → dates 배열로 변환
-          if (s.dates === undefined) {
-            s.dates = s.date ? [s.date] : [];
-            delete s.date;
-          }
-        });
-      }
-      // 일자별 보기: 회차(여러 날짜 묶음)를 날짜 단위 항목으로 평탄화
-      c.sessions = flattenSessionsByDate(c);
-    });
+    // 화면용으로 정규화한 상태를 저장 기준으로 삼는다 — 안 그러면 열기만 해도 서버에 덮어써 다른 탭이 '최신 아님'이 된다
+    lastSavedSnapshot = JSON.stringify(state);
   } catch (err) {
     console.error('초기 로드 실패:', err);
   }
