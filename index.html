@@ -308,7 +308,31 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
 .todo-done-month:hover { color: var(--text-primary); }
 .todo-done-month .todo-group-count { margin-left: auto; font-weight: 500; color: var(--text-tertiary); }
 .todo-done-time { flex-shrink: 0; font-size: 11px; color: var(--color-status-done); font-variant-numeric: tabular-nums; }
-@media (max-width: 560px) { .todo-item { flex-wrap: wrap; } .todo-title { flex-basis: calc(100% - 30px); } .todo-del, .todo-date-input { opacity: 1; } }
+.todo-plan { flex-shrink: 0; background: none; border: none; padding: 2px; cursor: pointer; color: var(--text-tertiary); display: inline-flex; opacity: 0; transition: opacity 0.15s; }
+.todo-item:hover .todo-plan, .todo-plan:focus-visible, .todo-plan.on { opacity: 1; }
+.todo-plan:hover { color: var(--color-d-dday); }
+.todo-plan.on { color: var(--color-d-dday); }
+@media (max-width: 560px) { .todo-item { flex-wrap: wrap; } .todo-title { flex-basis: calc(100% - 30px); } .todo-del, .todo-date-input, .todo-plan { opacity: 1; } }
+
+/* 오늘 할 일 패널 — '내 할 일' 중 할 날(plannedFor)이 오늘이거나 지난 미완료 항목만 기업별로 보여준다 */
+#today-toggle.has-items { border-color: color-mix(in srgb, var(--color-d-dday) 45%, transparent); color: var(--color-d-dday); }
+#today-toggle.has-items .memo-overview-badge { background: var(--color-d-dday); }
+.today-panel { margin-bottom: 16px; border: 1px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-secondary); overflow: hidden; }
+.today-body { padding: 2px 0 10px; }
+.today-group-title { padding: 12px 16px 2px; font-size: 12px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.today-group-title .today-jump { background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.today-group-title .today-jump:hover { color: var(--text-primary); text-decoration: underline; }
+.today-group-title .todo-group-count { font-weight: 500; color: var(--text-tertiary); }
+.today-time { flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--color-d-dday); font-variant-numeric: tabular-nums; }
+.today-carry { flex-shrink: 0; font-size: 11px; padding: 1px 7px; border-radius: 999px; color: var(--color-d-soon); background: color-mix(in srgb, var(--color-d-soon) 14%, transparent); }
+.today-later { flex-shrink: 0; background: none; border: 1px solid var(--border-secondary); border-radius: var(--radius-md); padding: 1px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 11px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 3px; opacity: 0; transition: opacity 0.15s; }
+.todo-item:hover .today-later, .today-later:focus-visible { opacity: 1; }
+.today-later:hover { color: var(--text-primary); border-color: var(--border-primary); }
+@media (max-width: 560px) { .today-later { opacity: 1; } }
+.undo-toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 12px); z-index: 1000; display: flex; align-items: center; gap: 12px; padding: 9px 14px; border-radius: var(--radius-md); background: var(--text-primary); color: var(--bg-primary); font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); opacity: 0; pointer-events: none; transition: opacity 0.18s, transform 0.18s; max-width: calc(100vw - 32px); }
+.undo-toast.visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.undo-toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.undo-toast button { flex-shrink: 0; background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--color-d-dday); }
 
 .period-row { margin-top: 8px; padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-tertiary); }
 .period-label { font-size: 11px; color: var(--text-tertiary); font-weight: 500; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 6px; letter-spacing: 0.2px; }
@@ -667,6 +691,7 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
     <button class="primary" onclick="addCompany()"><i class="ti ti-plus"></i> 기업 추가</button>
     <button onclick="openTaskModal()"><i class="ti ti-list-check"></i> 업무 추가</button>
     <button id="memo-overview-toggle" onclick="toggleMemoOverview()" title="교육별 업무 특이사항을 한 화면에 모아보기"><i class="ti ti-notes"></i> 특이사항 모아보기<span class="memo-overview-badge" id="memo-overview-count" style="display:none;">0</span></button>
+    <button id="today-toggle" onclick="toggleTodayPanel()" title="오늘 하기로 한 일을 기업별로 보기"><i class="ti ti-sun"></i> 오늘 할 일<span class="memo-overview-badge" id="today-count" style="display:none;">0</span></button>
     <button id="todo-toggle" onclick="toggleTodoPanel()" title="내가 해야 할 일을 마감일 순으로 보기"><i class="ti ti-checkbox"></i> 내 할 일<span class="memo-overview-badge" id="todo-count" style="display:none;">0</span></button>
     <div class="theme-toggle" role="group" aria-label="테마 선택">
       <button class="theme-btn" data-theme-value="light" onclick="setTheme('light')" title="라이트 모드" aria-label="라이트 모드"><i class="ti ti-sun"></i></button>
@@ -682,6 +707,14 @@ thead th { background: var(--bg-secondary); font-weight: 500; color: var(--text-
     <button class="tab" id="tab-completed" onclick="switchTab('completed')"><i class="ti ti-circle-check"></i>완료<span class="count" id="count-completed">0</span></button>
     <button class="tab" id="tab-overview" onclick="switchTab('overview')"><i class="ti ti-layout-grid"></i>전체보기<span class="count" id="count-overview">0</span></button>
     <button class="tab" id="tab-calendar" onclick="switchTab('calendar')"><i class="ti ti-calendar-month"></i>일정 캘린더</button>
+  </div>
+
+  <div id="today-panel" class="today-panel" style="display:none;">
+    <div class="memo-overview-head">
+      <span><i class="ti ti-sun"></i>오늘 할 일<span class="memo-overview-sub" id="today-sub"></span></span>
+      <button class="memo-overview-close" onclick="toggleTodayPanel()" title="닫기"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="today-body" id="today-body"></div>
   </div>
 
   <div class="top-panels" id="top-panels">
@@ -2362,6 +2395,7 @@ function todoItemHtml(t) {
     ${t.due ? `<span class="todo-due">${t.done ? '마감 ' : ''}${todoDueLabel(t.due)}</span>${t.done ? '' : todoDTag(t.due)}` : ''}
     ${t.done && todoDoneTime(t.doneAt) ? `<span class="todo-done-time" title="완료한 시각">${todoDoneTime(t.doneAt)} 완료</span>` : ''}
     <input type="date" class="todo-date-input" value="${escAttr(t.due || '')}" onchange="setTodoDue('${t.id}', this.value)" title="마감일 변경" aria-label="마감일 변경" />
+    ${t.done || editing ? '' : (() => { const on = !!t.plannedFor && t.plannedFor <= todayKey(); return `<button type="button" class="todo-plan${on ? ' on' : ''}" onclick="toggleTodoPlanToday('${t.id}')" title="${on ? '오늘 할 일에서 빼기' : '오늘 할 일에 넣기'}" aria-label="${on ? '오늘 할 일에서 빼기' : '오늘 할 일에 넣기'}"><i class="ti ti-sun"></i></button>`; })()}
     ${editing ? '' : `<button type="button" class="todo-del" onclick="deleteTodo('${t.id}')" title="삭제" aria-label="삭제"><i class="ti ti-x"></i></button>`}
   </div>`;
 }
@@ -2463,7 +2497,164 @@ function todoDoneDayLabel(date) {
   return todoDueLabel(date) + (n === 0 ? ' · 오늘' : n === -1 ? ' · 어제' : '');
 }
 
+// ─────────────────────────────────────────────────────────────
+// 오늘 할 일 — 따로 저장하지 않고 state.todos 중 할 날(plannedFor)이 오늘이거나 지난 미완료 항목을 보여준다.
+// 못 끝낸 일은 다음 날 자동으로 남는다(이월). Claude는 scripts/todo-plan.js로 할 날을 지정한다.
+// ─────────────────────────────────────────────────────────────
+let todayPanelOpen = (() => { try { return localStorage.getItem('training_today_open') !== '0'; } catch (e) { return true; } })();
+let todayShowDone = false;
+let undoTimer = null;
+
+function todoDisplayCompany(t) {
+  return String((t && t.company) || '').replace(/\(주\)|주식회사|유한회사|㈜/g, '').trim() || '기타';
+}
+
+// todos, today('YYYY-MM-DD') → { timed, groups, open, doneToday }
+// timed: 시간(time)이 있는 일, 시간순. groups: 나머지를 기업별로 묶음(이월된 일이 있는 기업 먼저, 공통·기타는 맨 뒤).
+function todayPlan(todos, today) {
+  const live = (todos || []).filter(t => t && !t.deletedAt);
+  const open = live.filter(t => !t.done && t.plannedFor && t.plannedFor <= today);
+  const timed = open.filter(t => t.time).sort((a, b) => String(a.time).localeCompare(String(b.time)));
+  const groups = [];
+  const byKey = {};
+  open.filter(t => !t.time)
+    .sort((a, b) => a.plannedFor.localeCompare(b.plannedFor) || (a.createdAt || '').localeCompare(b.createdAt || ''))
+    .forEach(t => {
+      const label = todoDisplayCompany(t);
+      const key = label;
+      if (!byKey[key]) { byKey[key] = { key, label, companyId: t.companyId == null ? null : t.companyId, items: [] }; groups.push(byKey[key]); }
+      if (byKey[key].companyId == null && t.companyId != null) byKey[key].companyId = t.companyId;
+      byKey[key].items.push(t);
+    });
+  const isGeneral = g => TODO_GENERAL_TAGS.includes(g.label);
+  groups.sort((a, b) => (isGeneral(a) ? 1 : 0) - (isGeneral(b) ? 1 : 0));
+  const doneToday = live
+    .filter(t => t.done && t.plannedFor && t.doneAt && !isNaN(new Date(t.doneAt)) && todoYmd(new Date(t.doneAt)) === today)
+    .sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
+  return { timed, groups, open, doneToday };
+}
+
+function todayCarryDays(t, today) {
+  if (!t.plannedFor) return 0;
+  return Math.round((new Date(today + 'T00:00:00') - new Date(t.plannedFor + 'T00:00:00')) / 86400000);
+}
+
+function todayItemHtml(t, today, showCompany) {
+  const carry = todayCarryDays(t, today);
+  return `<div class="todo-item${t.done ? ' done' : ''}">
+    <button type="button" class="todo-check" onclick="completeTodayTodo('${t.id}')" aria-label="${t.done ? '완료 취소' : '완료'}" title="${t.done ? '완료 취소' : '완료'}">${t.done ? '<i class="ti ti-check"></i>' : ''}</button>
+    ${t.time ? `<span class="today-time">${escHtml(t.time)}</span>` : ''}
+    ${showCompany && t.company ? `<span class="todo-company plain${TODO_GENERAL_TAGS.includes(t.company) ? ' general' : ''}">${escHtml(todoDisplayCompany(t))}</span>` : ''}
+    <span class="todo-title">${escHtml(t.title)}</span>
+    ${!t.done && carry > 0 ? `<span class="today-carry" title="${escAttr(t.plannedFor)}에 하기로 한 일">이월 ${carry}일</span>` : ''}
+    ${!t.done && t.due ? todoDTag(t.due) : ''}
+    ${t.done
+      ? (todoDoneTime(t.doneAt) ? `<span class="todo-done-time">${todoDoneTime(t.doneAt)} 완료</span>` : '')
+      : `<button type="button" class="today-later" onclick="postponeTodayTodo('${t.id}')" title="내일 할 일로 넘기기"><i class="ti ti-arrow-forward"></i>내일</button>`}
+  </div>`;
+}
+
+function renderToday() {
+  const panel = document.getElementById('today-panel');
+  if (!panel) return;
+  const today = todayKey();
+  const { timed, groups, open, doneToday } = todayPlan(state.todos, today);
+
+  const badge = document.getElementById('today-count');
+  if (badge) { badge.style.display = open.length ? '' : 'none'; badge.textContent = open.length; }
+  document.getElementById('today-toggle')?.classList.toggle('has-items', open.length > 0);
+
+  panel.style.display = todayPanelOpen ? '' : 'none';
+  if (!todayPanelOpen) return;
+  document.getElementById('today-sub').textContent =
+    `${todoDueLabel(today)} · 남은 ${open.length}개${doneToday.length ? ` · 완료 ${doneToday.length}개` : ''}`;
+
+  let html = '';
+  if (!open.length) {
+    html += `<div class="memo-overview-empty"><i class="ti ti-sun" style="font-size:22px; display:block; margin-bottom:8px;"></i>${doneToday.length ? '오늘 할 일을 모두 끝냈습니다' : "오늘 할 일이 없습니다 — '내 할 일'에서 <i class=\"ti ti-sun\"></i>를 누르거나 Claude에게 오늘 할 일을 적어주세요"}</div>`;
+  }
+  if (timed.length) {
+    html += `<div class="today-group-title">시간 일정<span class="todo-group-count">${timed.length}</span></div>`;
+    html += timed.map(t => todayItemHtml(t, today, true)).join('');
+  }
+  html += groups.map(g => {
+    const co = g.companyId != null ? state.companies.find(c => c.id === g.companyId) : null;
+    const title = co
+      ? `<button type="button" class="today-jump" onclick="jumpToCompany(${co.id})" title="이 교육으로 이동">${escHtml(g.label)}</button>`
+      : escHtml(g.label);
+    return `<div class="today-group-title">${title}<span class="todo-group-count">${g.items.length}</span></div>
+      ${g.items.map(t => todayItemHtml(t, today, false)).join('')}`;
+  }).join('');
+  if (doneToday.length) {
+    html += `<button type="button" class="todo-done-toggle" onclick="todayShowDone = !todayShowDone; renderToday();"><i class="ti ti-chevron-${todayShowDone ? 'up' : 'down'}"></i>오늘 완료 ${doneToday.length}개 ${todayShowDone ? '숨기기' : '보기'}</button>`;
+    if (todayShowDone) html += doneToday.map(t => todayItemHtml(t, today, true)).join('');
+  }
+  document.getElementById('today-body').innerHTML = html;
+}
+
+function toggleTodayPanel() {
+  todayPanelOpen = !todayPanelOpen;
+  try { localStorage.setItem('training_today_open', todayPanelOpen ? '1' : '0'); } catch (e) {}
+  renderToday();
+}
+
+function showUndoToast(label, undo) {
+  let toast = document.getElementById('undo-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'undo-toast';
+    toast.className = 'undo-toast';
+    toast.setAttribute('role', 'status');
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<span>${escHtml(label)}</span><button type="button">되돌리기</button>`;
+  toast.querySelector('button').onclick = () => { clearTimeout(undoTimer); toast.classList.remove('visible'); undo(); };
+  toast.classList.add('visible');
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => toast.classList.remove('visible'), 5000);
+}
+
+function completeTodayTodo(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  const wasDone = t.done;
+  toggleTodoDone(id);
+  if (!wasDone) showUndoToast(`완료: ${t.title}`, () => {
+    const cur = state.todos.find(x => x.id === id);
+    if (cur && cur.done) toggleTodoDone(id);
+  });
+}
+
+function postponeTodayTodo(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  const prev = t.plannedFor || '';
+  const d = new Date(todayKey() + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  t.plannedFor = todoYmd(d);
+  saveState();
+  renderTodos();
+  showUndoToast(`내일로 넘김: ${t.title}`, () => {
+    const cur = state.todos.find(x => x.id === id);
+    if (!cur) return;
+    cur.plannedFor = prev;
+    saveState();
+    renderTodos();
+  });
+}
+
+// '내 할 일'의 해 버튼 — 오늘 할 일에 넣거나 뺀다
+function toggleTodoPlanToday(id) {
+  const t = state.todos.find(t => t.id === id);
+  if (!t) return;
+  const today = todayKey();
+  t.plannedFor = (t.plannedFor && t.plannedFor <= today) ? '' : today;
+  saveState();
+  renderTodos();
+}
+
 function renderTodos() {
+  renderToday();
   const panel = document.getElementById('todo-panel');
   if (!panel) return;
   const todos = Array.isArray(state.todos) ? state.todos : [];
